@@ -1030,6 +1030,90 @@ def spectral_subtraction_v2(noisy_audio, n_fft=512, hop_length=160):
     return enhanced
 
 
+def spectral_subtraction_v3(noisy_audio, n_fft=512, hop_length=160):
+    """SS v3: Wiener gain + aggressive noise removal for LSG-equipped models.
+
+    SS v2 uses subtractive approach (mag - alpha*noise) → artifacts at low SNR.
+    SS v3 uses multiplicative Wiener gain → cleaner output, compatible with LSG.
+
+    Key changes from v2:
+      1. Wiener gain instead of subtraction: G = max(1 - alpha*(N/X)^2, floor)
+         → No negative spectrum artifacts, smoother attenuation
+      2. More aggressive at low SNR: alpha up to 5.0 (vs v2's 3.0)
+      3. No SF weighting at extreme SNR: at -15dB, full suppression regardless
+         of noise type (LSG handles residual noise-type-specific shaping)
+      4. Lower spectral floor: 5%/1% (vs v2's 15%/3%) → more noise removed
+      5. Power-domain Wiener gain: (|X|^2 - alpha*|N|^2) / |X|^2
+
+    Design philosophy: SS v3 does heavy gross noise removal (audio domain),
+    LSG does fine residual shaping (mel domain). No double-counting.
+
+    Args:
+        noisy_audio: (B, T) or (T,) waveform tensor
+        n_fft: FFT size (512 = 32ms @ 16kHz)
+        hop_length: hop size (160 = 10ms @ 16kHz)
+    Returns:
+        enhanced: (B, T) or (T,) enhanced waveform
+    """
+    squeeze = False
+    if noisy_audio.dim() == 1:
+        noisy_audio = noisy_audio.unsqueeze(0)
+        squeeze = True
+
+    window = torch.hann_window(n_fft, device=noisy_audio.device)
+    spec = torch.stft(noisy_audio, n_fft, hop_length, window=window,
+                      return_complex=True)  # (B, F, T_frames)
+    mag = spec.abs()
+    phase = spec.angle()
+    B, F, T_frames = mag.shape
+
+    # Running minimum statistics noise estimation (same as v2)
+    n_init = min(5, T_frames)
+    noise_est = mag[..., :n_init].mean(dim=-1, keepdim=True).expand_as(mag).clone()
+    alpha_noise = 0.95
+
+    for t in range(1, T_frames):
+        frame_power = mag[..., t:t+1]
+        local_min = torch.minimum(frame_power, noise_est[..., t-1:t])
+        noise_est[..., t:t+1] = (alpha_noise * noise_est[..., t-1:t] +
+                                  (1.0 - alpha_noise) * local_min)
+
+    # Per-frame SNR estimation
+    frame_power_avg = mag.pow(2).mean(dim=1, keepdim=True)
+    noise_power_avg = noise_est.pow(2).mean(dim=1, keepdim=True)
+    frame_snr = 10.0 * torch.log10(
+        frame_power_avg / (noise_power_avg + 1e-10) + 1e-10)
+
+    # [v3] More aggressive oversubtraction: range [1.0, 5.0] (vs v2's [0.5, 3.0])
+    # At -15dB: alpha ≈ 5.0, at +5dB: alpha ≈ 1.0
+    alpha = 1.0 + 4.0 * torch.sigmoid(-0.3 * (frame_snr - 5.0))
+
+    # [v3] No SF weighting — let LSG handle noise-type-specific shaping
+    # SS v3 does uniform heavy suppression, LSG refines per-frequency
+
+    # [v3] Wiener gain (power domain): G = max(1 - alpha * (N/X)^2, floor)
+    noise_ratio = (noise_est.pow(2)) / (mag.pow(2) + 1e-10)  # (B, F, T)
+    gain = (1.0 - alpha * noise_ratio).clamp(min=0.0)        # (B, F, T)
+
+    # [v3] Lower frequency-weighted floor: 5% low-freq, 1% high-freq
+    # Less speech protection → more noise removed → LSG handles residual
+    freq_floor = torch.linspace(0.05, 0.01, F, device=mag.device)
+    freq_floor = freq_floor.unsqueeze(0).unsqueeze(-1)  # (1, F, 1)
+    gain = torch.maximum(gain, freq_floor)
+
+    # Apply Wiener gain (multiplicative → no negative spectrum)
+    enhanced_mag = gain * mag
+
+    # Reconstruct waveform
+    enhanced_spec = enhanced_mag * torch.exp(1j * phase)
+    enhanced = torch.istft(enhanced_spec, n_fft, hop_length, window=window,
+                           length=noisy_audio.size(-1))
+
+    if squeeze:
+        enhanced = enhanced.squeeze(0)
+    return enhanced
+
+
 # ============================================================================
 # GTCRN Pre-trained Enhancer (23.7K params, ICASSP 2024)
 # ============================================================================
@@ -1312,13 +1396,18 @@ def evaluate_noisy(model, val_loader, device, noise_type='factory',
         enhancer_bypass: if True, apply SNR-adaptive bypass (blend original + enhanced)
         bypass_threshold: SNR threshold in dB for bypass gate center
         bypass_scale: sigmoid steepness (higher = sharper transition)
-        ss_version: 'v1' (fixed oversubtract) or 'v2' (adaptive oversubtract + freq floor)
+        ss_version: 'v1' (fixed), 'v2' (adaptive + freq floor), 'v3' (Wiener gain, aggressive)
         bypass_version: 'v1' (fixed threshold) or 'v2' (noise-type-aware threshold)
         is_cnn: if True, model expects mel input → compute mel from noisy audio
         mel_fb: mel filterbank tensor (required if is_cnn=True)
     """
     # Select SS function based on version
-    ss_fn = spectral_subtraction_v2 if ss_version == 'v2' else spectral_subtraction_enhance
+    if ss_version == 'v3':
+        ss_fn = spectral_subtraction_v3
+    elif ss_version == 'v2':
+        ss_fn = spectral_subtraction_v2
+    else:
+        ss_fn = spectral_subtraction_enhance
 
     model.eval()
     correct = 0
@@ -1456,7 +1545,7 @@ def run_noise_evaluation(models_dict, val_loader, device,
                       'gtcrn': 'GTCRN PRE-TRAINED (23.7K params)'}
     bypass_str = " + SNR-ADAPTIVE BYPASS" if enhancer_bypass else ""
     version_str = ""
-    if ss_version == 'v2' or bypass_version == 'v2':
+    if ss_version in ('v2', 'v3') or bypass_version == 'v2':
         version_str = f" [SS:{ss_version}, Bypass:{bypass_version}]"
     enhancer_str = f" [WITH {enhancer_names.get(enhancer_type, enhancer_type)}{bypass_str}{version_str}]" if use_enhancer else ""
     print("\n" + "=" * 80)
@@ -1465,7 +1554,9 @@ def run_noise_evaluation(models_dict, val_loader, device,
     print(f"  SNR levels: {snr_levels}")
     if enhancer_bypass:
         print(f"  Bypass: threshold={bypass_threshold}dB, scale={bypass_scale}")
-        if ss_version == 'v2':
+        if ss_version == 'v3':
+            print(f"  SS v3: Wiener gain + aggressive (alpha 1.0-5.0) + low floor (5%/1%)")
+        elif ss_version == 'v2':
             print(f"  SS v2: adaptive oversubtract + freq-weighted floor + running noise est")
         if bypass_version == 'v2':
             print(f"  Bypass v2: noise-type-aware threshold (SF-adaptive)")
@@ -3034,8 +3125,8 @@ def main():
     parser.add_argument('--sf_range', type=float, default=2.0,
                         help='Spectral flatness adaptive range for bypass (default: 2.0)')
     parser.add_argument('--ss_version', type=str, default='v2',
-                        choices=['v1', 'v2'],
-                        help='SS version: v1 (fixed oversubtract) or v2 (adaptive)')
+                        choices=['v1', 'v2', 'v3'],
+                        help='SS version: v1 (fixed), v2 (adaptive), v3 (Wiener gain aggressive)')
     parser.add_argument('--bypass_version', type=str, default='v2',
                         choices=['v1', 'v2'],
                         help='Bypass version: v1 (fixed threshold) or v2 (noise-aware)')
