@@ -10,3 +10,4 @@ checkpoints*/
 *.blg
 *.out
 *.synctex.gz
+paper/*.pdf

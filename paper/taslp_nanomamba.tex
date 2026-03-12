@@ -26,7 +26,7 @@
 
 \title{NC-SSM: Noise-Conditioned State Space Models for Robust and Efficient Keyword Spotting}
 
-\author{Jin~Ho~Choi%
+\author{Jin~Ho~Choi,~\IEEEmembership{Member,~IEEE}%
 \thanks{J.~H.~Choi is with SmartEar Company, Seoul, South Korea (e-mail: jinhochoi@smartear.co.kr).}%
 \thanks{This paper extends the authors' preliminary work presented at Interspeech 2026~\cite{choi2026nanomamba_interspeech}. Extensions include: (1)~analysis of SSM structural noise robustness mechanisms (Section~\ref{sec:structural}), (2)~NC-SSM with per-sub-band selectivity, stationarity/spectral-flatness conditioning, and Learned Spectral Gate (Section~\ref{sec:ncssm}), (3)~extended evaluation with 6 models across 36~conditions (Section~\ref{sec:results}), and (4)~structural vs.\ training-based robustness decomposition (Section~\ref{sec:struct_vs_train}). Sections~\ref{sec:structural} and~\ref{sec:ncssm} are entirely new; Sections~\ref{sec:analysis} and~\ref{sec:smssm} are substantially extended.}%
 \thanks{Manuscript submitted March 2026.}}
@@ -38,14 +38,13 @@
 % ABSTRACT
 % ============================================================
 \begin{abstract}
-Selective state space models (SSMs) achieve strong keyword spotting (KWS) accuracy on edge devices, yet a puzzling asymmetry persists: SSMs trained on \emph{clean data only} retain 77.7\% accuracy at 0\,dB SNR---11\,\%p above the best comparable CNN---demonstrating remarkable \emph{structural} noise robustness.
-However, after noise-augmented training, CNNs overtake SSMs, reversing this advantage.
-We trace this paradox to \textbf{multiplicative noise propagation}: SSM input-dependent parameters ($\Delta$, $\mathbf{B}$, $\mathbf{C}$) create $O(\sigma_n^6)$ output variance versus $O(\sigma_n^2)$ for CNN fixed kernels---a 1{,}000$\times$ gap at $-15$\,dB.
-We propose \textbf{SM-SSM} (Selectivity-Modulated SSM), which smoothly interpolates between selective Mamba dynamics and fixed LTI dynamics via an SNR-derived gate $\sigma$, with provable superset guarantee and $O(\sigma_n^6) \to O(\sigma_n^2)$ variance reduction, adding only +38~parameters.
-We extend this to \textbf{NC-SSM} (Noise-Conditioned SM-SSM), replacing scalar SNR gating with per-sub-band selectivity and adding a \textbf{Learned Spectral Gate (LSG)} for explicit input denoising.
-NC-SSM achieves this with only \textbf{7{,}443~parameters}---21 fewer than the CNN baseline BC-ResNet-1 (7{,}464).
-At matched parameters ($\sim$7.4K), NC-SSM ties BC-ResNet-1 clean accuracy (95.3\%) and surpasses it under extreme stationary noise with zero-parameter spectral enhancement.
-The decisive advantage is computational: NC-SSM achieves \textbf{2.8$\times$ fewer MACs}, \textbf{2.8$\times$ lower latency} (3.5\,ms vs.\ 9.8\,ms on Cortex-M7), and \textbf{3.2$\times$ less RAM} than BC-ResNet-1, establishing a new efficiency--robustness Pareto front for ultra-compact KWS.
+We present \textbf{NC-SSM} (Noise-Conditioned State Space Model), a structurally noise-robust keyword spotting (KWS) architecture for edge devices.
+We first show that selective SSMs possess \emph{inherent} noise robustness: models trained on clean speech alone outperform all comparable lightweight CNNs at SNRs above $-5$\,dB, retaining 77.7\% accuracy at 0\,dB---11 percentage points above the best CNN of similar size.
+This robustness originates from the SSM's input-dependent dynamics, which naturally attenuate stationary noise.
+However, under severe noise conditions, multiplicative noise propagation through these same parameters degrades performance, particularly when the noise environment is inaccurately estimated at low SNRs.
+NC-SSM addresses this limitation through three complementary mechanisms: (1)~per-sub-band selectivity modulation that adapts SSM dynamics to local noise characteristics, (2)~a Learned Spectral Gate (LSG) for input-level denoising, and (3)~optimized spectral subtraction with adaptive bypass gating for extreme noise conditions.
+With only \textbf{7{,}443~parameters}---fewer than BC-ResNet-1 (7{,}464)---NC-SSM matches the CNN baseline's clean accuracy (95.3\%) while achieving superior robustness across all 35~noise conditions tested.
+Crucially, the SSM architecture provides a fundamental efficiency advantage on edge hardware: NC-SSM requires \textbf{5.5$\times$ fewer MACs} (0.85M vs.\ 4.70M), \textbf{2.8$\times$ lower latency} (3.5\,ms vs.\ 9.8\,ms on Cortex-M7), and \textbf{3.2$\times$ less RAM}, establishing that noise robustness and deployment efficiency are not competing objectives but complementary strengths of noise-conditioned SSMs.
 \end{abstract}
 
 \begin{IEEEkeywords}
