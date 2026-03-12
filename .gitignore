@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+data/
+checkpoints*/
+*.egg-info/
+.ipynb_checkpoints/
+*.aux
+*.log
+*.bbl
+*.blg
+*.out
+*.synctex.gz
