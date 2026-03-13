@@ -739,7 +739,7 @@ Warm-start initialization preserves SM-SSM behavior: $\mathbf{w}^{\text{sub}} = 
 \tikz{\node[fill=sharedcolor!12, draw=sharedcolor!70, rounded corners=2pt, minimum width=0.5cm, minimum height=0.25cm] {};}\,Shared / Standard \quad
 \tikz{\draw[->, thick, dashed, color=newcolor!80] (0,0) -- (0.5,0);}\,Conditioning path
 }
-\caption{NC-SSM architecture. The horizontal signal path flows left-to-right: raw audio is optionally enhanced by spectral subtraction with adaptive bypass, then processed through STFT/mel extraction, Learned Spectral Gate (LSG), DualPCEN normalization, and two NC-SSM blocks with per-sub-band selectivity gates $\bm{\sigma}$. SNR estimation from mel features conditions LSG, the bypass gate, and the per-sub-band $\bm{\sigma}$ gates. Stationarity ($g_t$) and spectral flatness ($\beta_t$) provide additional noise-type-aware conditioning. Total: 7{,}443 parameters.}
+\caption{NC-SSM architecture: Noise-conditioned SSM with per-sub-band selectivity modulation, stationarity/spectral-flatness conditioning, Learned Spectral Gate, and optimized spectral enhancement---the most parameter-efficient noise-robust KWS model.}
 \label{fig:architecture}
 \end{figure*}
 
@@ -1110,7 +1110,7 @@ The current evaluation uses a single dataset (GSC V2) with procedurally generate
 Remaining directions include:
 (1)~real-world noise recordings and field tests;
 (2)~scaling to NC-SSM-Large ($\sim$10K params, $d_{\text{model}}{=}24$, $N{=}8$);
-(3)~on-device validation on physical Cortex-M7 hardware;
+(3)~on-device deployment on physical Cortex-M7 hardware (STM32H7), validating theoretical MAC/latency estimates against measured inference time, peak SRAM usage, and power consumption under realistic always-on KWS workloads;
 (4)~extending structural robustness analysis to other audio tasks.
 
 
