@@ -892,50 +892,85 @@ Table~\ref{tab:noise_main} reports accuracy under five noise types at all SNR le
 \end{tabular}
 \end{table*}
 
-\begin{figure}[t]
+\begin{figure*}[t]
 \centering
-\begin{tikzpicture}
-\begin{axis}[
-    width=\columnwidth,
-    height=5.5cm,
-    xlabel={SNR (dB)},
-    ylabel={Average Accuracy (\%)},
-    xmin=-17, xmax=17,
-    ymin=50, ymax=100,
-    xtick={-15,-10,-5,0,5,10,15},
-    ytick={50,60,70,80,90,100},
+\pgfplotsset{
+  noise plot/.style={
+    width=0.34\textwidth, height=3.0cm,
+    xmin=-17, xmax=17, ymin=25, ymax=100,
+    xtick={-15,0,15},
+    ytick={30,50,70,90},
     grid=both,
-    grid style={line width=.1pt, draw=gray!20},
-    major grid style={line width=.2pt,draw=gray!40},
-    legend style={at={(0.02,0.98)}, anchor=north west, font=\scriptsize, row sep=-2pt},
-    every axis plot/.append style={thick},
-    tick label style={font=\small},
-    label style={font=\small},
-]
-
-% DS-CNN-S (23.8K) - dashed gray
-\addplot[color=gray!60, dashed, mark=triangle*, mark size=2pt]
-    coordinates {(-15,65.5) (-10,72.7) (-5,84.6) (0,91.1) (5,93.8) (10,95.0) (15,95.9)};
-
-% BC-ResNet-1 (7.5K) - solid red
-\addplot[color=red!70!black, mark=square*, mark size=2pt]
-    coordinates {(-15,63.9) (-10,71.0) (-5,81.3) (0,88.0) (5,91.6) (10,93.3) (15,94.3)};
-
-% NC-SSM (7.4K) - solid blue
-\addplot[color=blue!80!black, mark=*, mark size=2pt]
-    coordinates {(-15,60.2) (-10,67.7) (-5,77.9) (0,86.1) (5,90.6) (10,92.8) (15,93.9)};
-
-% NC-SSM-Large (10.2K) - solid blue, thick
-\addplot[color=blue!80!black, densely dashed, mark=diamond*, mark size=2.5pt]
-    coordinates {(-15,56.5) (-10,66.9) (-5,78.9) (0,87.1) (5,91.5) (10,93.5) (15,94.4)};
-
-\legend{DS-CNN-S (23.8K), BC-ResNet-1 (7.5K), NC-SSM (7.4K), NC-SSM-Large (10.2K)}
-
+    grid style={line width=.1pt, draw=gray!15},
+    major grid style={line width=.2pt, draw=gray!30},
+    every axis plot/.append style={semithick, mark size=1.2pt},
+    tick label style={font=\tiny},
+    label style={font=\tiny},
+    title style={font=\scriptsize\bfseries},
+  }
+}
+\begin{tikzpicture}
+% Row 1: Factory, White, Babble
+\begin{axis}[noise plot, name=p1,
+    title={Factory}, ylabel={Accuracy (\%)}, xlabel={}]
+\addplot[color=red!70!black, mark=square*]
+    coordinates {(-15,64.5)(-10,74.8)(-5,83.5)(0,89.0)(5,91.9)(10,92.9)(15,93.9)};
+\addplot[color=blue!80!black, mark=*]
+    coordinates {(-15,61.4)(-10,69.2)(-5,77.8)(0,86.8)(5,90.1)(10,92.4)(15,92.9)};
+\addplot[color=blue!80!black, densely dashed, mark=diamond*]
+    coordinates {(-15,61.3)(-10,68.6)(-5,79.1)(0,87.0)(5,91.0)(10,93.1)(15,93.4)};
 \end{axis}
+
+\begin{axis}[noise plot, name=p2, at={(p1.east)}, anchor=west, xshift=0.2cm,
+    title={White}, ylabel={}, xlabel={}]
+\addplot[color=red!70!black, mark=square*]
+    coordinates {(-15,58.6)(-10,64.6)(-5,76.7)(0,85.9)(5,90.2)(10,92.6)(15,93.8)};
+\addplot[color=blue!80!black, mark=*]
+    coordinates {(-15,50.8)(-10,63.0)(-5,75.5)(0,85.2)(5,90.0)(10,92.5)(15,93.5)};
+\addplot[color=blue!80!black, densely dashed, mark=diamond*]
+    coordinates {(-15,34.1)(-10,59.8)(-5,76.5)(0,86.4)(5,91.0)(10,93.4)(15,94.4)};
+\end{axis}
+
+\begin{axis}[noise plot, name=p3, at={(p2.east)}, anchor=west, xshift=0.2cm,
+    title={Babble}, ylabel={}, xlabel={},
+    legend style={at={(1.0,0.02)}, anchor=south east, font=\scriptsize,
+      row sep=-2pt, legend columns=1}]
+\addplot[color=red!70!black, mark=square*]
+    coordinates {(-15,76.7)(-10,84.3)(-5,88.8)(0,92.1)(5,93.8)(10,94.4)(15,95.0)};
+\addplot[color=blue!80!black, mark=*]
+    coordinates {(-15,73.4)(-10,79.1)(-5,84.1)(0,89.9)(5,92.4)(10,94.0)(15,94.8)};
+\addplot[color=blue!80!black, densely dashed, mark=diamond*]
+    coordinates {(-15,74.0)(-10,80.2)(-5,86.8)(0,91.3)(5,93.3)(10,94.4)(15,95.1)};
+\legend{BC-ResNet-1 (7.5K\,/\,4.70M), NC-SSM (7.4K\,/\,0.85M), NC-SSM-L (10.2K\,/\,1.15M)}
+\end{axis}
+
+% Row 2: Street, Pink (centered)
+\begin{axis}[noise plot, name=p4,
+    at={($(p1.south west)!0.5!(p2.south west)$)}, anchor=north west,
+    yshift=-0.3cm,
+    title={Street}, ylabel={Accuracy (\%)}, xlabel={SNR (dB)}]
+\addplot[color=red!70!black, mark=square*]
+    coordinates {(-15,60.7)(-10,65.1)(-5,77.7)(0,84.8)(5,90.1)(10,93.0)(15,94.1)};
+\addplot[color=blue!80!black, mark=*]
+    coordinates {(-15,60.2)(-10,64.3)(-5,75.2)(0,82.2)(5,88.9)(10,92.2)(15,93.7)};
+\addplot[color=blue!80!black, densely dashed, mark=diamond*]
+    coordinates {(-15,57.8)(-10,63.5)(-5,75.7)(0,83.4)(5,90.1)(10,92.8)(15,94.5)};
+\end{axis}
+
+\begin{axis}[noise plot, name=p5, at={(p4.east)}, anchor=west, xshift=0.2cm,
+    title={Pink}, ylabel={}, xlabel={SNR (dB)}]
+\addplot[color=red!70!black, mark=square*]
+    coordinates {(-15,58.9)(-10,66.0)(-5,79.7)(0,88.4)(5,91.8)(10,93.8)(15,94.5)};
+\addplot[color=blue!80!black, mark=*]
+    coordinates {(-15,55.2)(-10,62.9)(-5,76.7)(0,86.6)(5,91.5)(10,93.0)(15,94.4)};
+\addplot[color=blue!80!black, densely dashed, mark=diamond*]
+    coordinates {(-15,55.4)(-10,62.2)(-5,76.4)(0,87.2)(5,91.9)(10,93.8)(15,94.7)};
+\end{axis}
+
 \end{tikzpicture}
-\caption{Average accuracy (5 noise types) vs.\ SNR. NC-SSM-Large matches BC-ResNet-1 above 5\,dB while requiring 4.1$\times$ fewer MACs. The gap below 0\,dB reflects multiplicative noise propagation ($O(\sigma_n^6)$), which SS+Bypass compensates (Table~\ref{tab:ss_bypass}).}
+\caption{Accuracy vs.\ SNR per noise type. NC-SSM-Large ($\blacklozenge$) matches BC-ResNet-1 ($\blacksquare$) above 5\,dB with 4.1$\times$ fewer MACs. The gap below $-5$\,dB reflects $O(\sigma_n^6)$ multiplicative noise propagation. Babble shows the smallest gap due to NC-SSM's non-stationary adaptation.}
 \label{fig:snr_curve}
-\end{figure}
+\end{figure*}
 
 
 \subsection{SS+Bypass Enhancement}
