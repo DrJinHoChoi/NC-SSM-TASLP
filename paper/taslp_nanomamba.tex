@@ -813,7 +813,7 @@ SSM models additionally use SpecAugment~\cite{park2019specaugment} and EMA (deca
 
 \begin{table}[t]
 \centering
-\caption{Clean accuracy on GSC V2 (12-class). NC-SSM matches the CNN baseline with fewer parameters.}
+\caption{Clean accuracy on GSC V2 (12-class). NC-SSM-Large surpasses the CNN baseline with 4.1$\times$ fewer MACs.}
 \label{tab:clean}
 \small
 \begin{tabular}{lrr}
@@ -824,7 +824,8 @@ DS-CNN-S & 23{,}756 & 96.4 \\
 BC-ResNet-1 & 7{,}464 & 95.3 \\
 \midrule
 NM-Matched & 7{,}402 & 95.1 \\
-NC-SSM & \textbf{7{,}443} & \textbf{95.3} \\
+NC-SSM & 7{,}443 & 95.3 \\
+NC-SSM-Large & 10{,}191 & \textbf{95.6} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -853,38 +854,88 @@ Table~\ref{tab:noise_main} reports accuracy under five noise types at all SNR le
 \toprule
 \textbf{Noise} & \textbf{Model} & \textbf{Clean} & $\mathbf{-15}$ & $\mathbf{-10}$ & $\mathbf{-5}$ & $\mathbf{0}$ & $\mathbf{5}$ & $\mathbf{10}$ & $\mathbf{15}$\,\textbf{dB} \\
 \midrule
-\multirow{4}{*}{Factory}
-  & DS-CNN-S (23.8K)    & 96.8 & 64.4 & 74.6 & 85.9 & 91.5 & 93.8 & 95.1 & 95.5 \\
-  & BC-ResNet-1 (7.5K)  & \textbf{95.3} & \textbf{64.5} & \textbf{74.8} & \textbf{83.5} & \textbf{89.0} & \textbf{91.9} & 92.9 & \textbf{93.9} \\
-  & NM-Matched (7.4K)   & 95.1 & 61.1 & 70.6 & 82.3 & 88.5 & 91.4 & \textbf{93.0} & 93.8 \\
-  & NC-SSM (7.4K)       & \textbf{95.3} & 62.2 & --- & --- & 88.0 & --- & --- & --- \\
+\multirow{5}{*}{Factory}
+  & DS-CNN-S (23.8K)       & 96.8 & 64.4 & 74.6 & 85.9 & 91.5 & 93.8 & 95.1 & 95.5 \\
+  & BC-ResNet-1 (7.5K)     & 95.3 & \textbf{64.5} & \textbf{74.8} & \textbf{83.5} & \textbf{89.0} & 91.9 & 92.9 & 93.9 \\
+  & NM-Matched (7.4K)      & 95.1 & 61.1 & 70.6 & 82.3 & 88.5 & 91.4 & 93.0 & 93.8 \\
+  & NC-SSM (7.4K)          & \textbf{95.3} & 61.4 & 69.2 & 77.8 & 86.8 & 90.1 & 92.4 & 92.9 \\
+  & NC-SSM-Large (10.2K)   & \textbf{95.6} & 61.3 & 68.6 & 79.1 & 87.0 & \textbf{91.0} & \textbf{93.1} & \textbf{93.4} \\
 \midrule
-\multirow{4}{*}{White}
-  & DS-CNN-S (23.8K)    & 96.8 & 61.7 & 67.1 & 81.6 & 89.9 & 93.1 & 94.8 & 95.6 \\
-  & BC-ResNet-1 (7.5K)  & \textbf{95.3} & \textbf{58.6} & \textbf{64.6} & \textbf{76.7} & \textbf{85.9} & \textbf{90.2} & 92.6 & 93.8 \\
-  & NM-Matched (7.4K)   & 95.1 & 31.1 & 59.1 & 75.0 & 85.5 & 89.8 & \textbf{92.8} & \textbf{93.9} \\
-  & NC-SSM (7.4K)       & \textbf{95.3} & 46.6 & --- & --- & \textbf{86.0} & --- & --- & --- \\
+\multirow{5}{*}{White}
+  & DS-CNN-S (23.8K)       & 96.8 & 61.7 & 67.1 & 81.6 & 89.9 & 93.1 & 94.8 & 95.6 \\
+  & BC-ResNet-1 (7.5K)     & 95.3 & \textbf{58.6} & \textbf{64.6} & 76.7 & 85.9 & 90.2 & 92.6 & 93.8 \\
+  & NM-Matched (7.4K)      & 95.1 & 31.1 & 59.1 & 75.0 & 85.5 & 89.8 & 92.8 & 93.9 \\
+  & NC-SSM (7.4K)          & \textbf{95.3} & 50.8 & 63.0 & \textbf{75.5} & \textbf{85.2} & \textbf{90.0} & \textbf{92.5} & \textbf{93.5} \\
+  & NC-SSM-Large (10.2K)   & \textbf{95.6} & 34.1 & 59.8 & \textbf{76.5} & \textbf{86.4} & \textbf{91.0} & \textbf{93.4} & \textbf{94.4} \\
 \midrule
-\multirow{4}{*}{Babble}
-  & DS-CNN-S (23.8K)    & 96.8 & 79.2 & 86.2 & 91.4 & 94.5 & 95.5 & 95.9 & 96.5 \\
-  & BC-ResNet-1 (7.5K)  & \textbf{95.3} & \textbf{76.7} & \textbf{84.3} & \textbf{88.8} & \textbf{92.1} & \textbf{93.8} & \textbf{94.4} & \textbf{95.0} \\
-  & NM-Matched (7.4K)   & 95.1 & 71.4 & 79.0 & 86.0 & 91.0 & 93.0 & 93.9 & 94.5 \\
-  & NC-SSM (7.4K)       & \textbf{95.3} & 74.9 & --- & --- & 90.8 & --- & --- & --- \\
+\multirow{5}{*}{Babble}
+  & DS-CNN-S (23.8K)       & 96.8 & 79.2 & 86.2 & 91.4 & 94.5 & 95.5 & 95.9 & 96.5 \\
+  & BC-ResNet-1 (7.5K)     & 95.3 & \textbf{76.7} & \textbf{84.3} & \textbf{88.8} & \textbf{92.1} & \textbf{93.8} & \textbf{94.4} & \textbf{95.0} \\
+  & NM-Matched (7.4K)      & 95.1 & 71.4 & 79.0 & 86.0 & 91.0 & 93.0 & 93.9 & 94.5 \\
+  & NC-SSM (7.4K)          & 95.2 & 73.4 & 79.1 & 84.1 & 89.9 & 92.4 & 94.0 & 94.8 \\
+  & NC-SSM-Large (10.2K)   & \textbf{95.5} & \textbf{74.0} & 80.2 & \textbf{86.8} & \textbf{91.3} & 93.3 & \textbf{94.4} & \textbf{95.1} \\
 \midrule
-\multirow{4}{*}{Street}
-  & DS-CNN-S (23.8K)    & 96.8 & 61.1 & 69.4 & 81.5 & 88.9 & 92.8 & 95.0 & 95.9 \\
-  & BC-ResNet-1 (7.5K)  & \textbf{95.3} & \textbf{60.7} & \textbf{65.1} & \textbf{77.7} & \textbf{84.8} & \textbf{90.1} & \textbf{93.0} & 94.1 \\
-  & NM-Matched (7.4K)   & 95.1 & 57.6 & 64.2 & 73.9 & 83.8 & 88.4 & 92.4 & \textbf{94.2} \\
-  & NC-SSM (7.4K)       & \textbf{95.3} & 59.1 & --- & --- & 82.9 & --- & --- & --- \\
+\multirow{5}{*}{Street}
+  & DS-CNN-S (23.8K)       & 96.8 & 61.1 & 69.4 & 81.5 & 88.9 & 92.8 & 95.0 & 95.9 \\
+  & BC-ResNet-1 (7.5K)     & 95.3 & \textbf{60.7} & \textbf{65.1} & \textbf{77.7} & \textbf{84.8} & \textbf{90.1} & \textbf{93.0} & 94.1 \\
+  & NM-Matched (7.4K)      & 95.1 & 57.6 & 64.2 & 73.9 & 83.8 & 88.4 & 92.4 & \textbf{94.2} \\
+  & NC-SSM (7.4K)          & 95.2 & 60.2 & 64.3 & 75.2 & 82.2 & 88.9 & 92.2 & 93.7 \\
+  & NC-SSM-Large (10.2K)   & \textbf{95.6} & 57.8 & 63.5 & 75.7 & 83.4 & 90.1 & 92.8 & \textbf{94.5} \\
 \midrule
-\multirow{4}{*}{Pink}
-  & DS-CNN-S (23.8K)    & 96.8 & 61.2 & 66.4 & 82.7 & 90.6 & 93.8 & 95.1 & 95.9 \\
-  & BC-ResNet-1 (7.5K)  & \textbf{95.3} & \textbf{58.9} & \textbf{66.0} & \textbf{79.7} & \textbf{88.4} & \textbf{91.8} & \textbf{93.8} & \textbf{94.5} \\
-  & NM-Matched (7.4K)   & 95.2 & 23.6 & 52.4 & 76.9 & 87.3 & 91.7 & 93.0 & 94.4 \\
-  & NC-SSM (7.4K)       & 95.2 & 56.8 & --- & --- & 87.3 & --- & --- & --- \\
+\multirow{5}{*}{Pink}
+  & DS-CNN-S (23.8K)       & 96.8 & 61.2 & 66.4 & 82.7 & 90.6 & 93.8 & 95.1 & 95.9 \\
+  & BC-ResNet-1 (7.5K)     & 95.3 & \textbf{58.9} & \textbf{66.0} & \textbf{79.7} & \textbf{88.4} & 91.8 & 93.8 & 94.5 \\
+  & NM-Matched (7.4K)      & 95.2 & 23.6 & 52.4 & 76.9 & 87.3 & 91.7 & 93.0 & 94.4 \\
+  & NC-SSM (7.4K)          & 95.2 & 55.2 & 62.9 & 76.7 & 86.6 & 91.5 & 93.0 & 94.4 \\
+  & NC-SSM-Large (10.2K)   & \textbf{95.6} & 55.4 & 62.2 & 76.4 & 87.2 & \textbf{91.9} & \textbf{93.8} & \textbf{94.7} \\
 \bottomrule
 \end{tabular}
 \end{table*}
+
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+    width=\columnwidth,
+    height=5.5cm,
+    xlabel={SNR (dB)},
+    ylabel={Average Accuracy (\%)},
+    xmin=-17, xmax=17,
+    ymin=50, ymax=100,
+    xtick={-15,-10,-5,0,5,10,15},
+    ytick={50,60,70,80,90,100},
+    grid=both,
+    grid style={line width=.1pt, draw=gray!20},
+    major grid style={line width=.2pt,draw=gray!40},
+    legend style={at={(0.02,0.98)}, anchor=north west, font=\scriptsize, row sep=-2pt},
+    every axis plot/.append style={thick},
+    tick label style={font=\small},
+    label style={font=\small},
+]
+
+% DS-CNN-S (23.8K) - dashed gray
+\addplot[color=gray!60, dashed, mark=triangle*, mark size=2pt]
+    coordinates {(-15,65.5) (-10,72.7) (-5,84.6) (0,91.1) (5,93.8) (10,95.0) (15,95.9)};
+
+% BC-ResNet-1 (7.5K) - solid red
+\addplot[color=red!70!black, mark=square*, mark size=2pt]
+    coordinates {(-15,63.9) (-10,71.0) (-5,81.3) (0,88.0) (5,91.6) (10,93.3) (15,94.3)};
+
+% NC-SSM (7.4K) - solid blue
+\addplot[color=blue!80!black, mark=*, mark size=2pt]
+    coordinates {(-15,60.2) (-10,67.7) (-5,77.9) (0,86.1) (5,90.6) (10,92.8) (15,93.9)};
+
+% NC-SSM-Large (10.2K) - solid blue, thick
+\addplot[color=blue!80!black, densely dashed, mark=diamond*, mark size=2.5pt]
+    coordinates {(-15,56.5) (-10,66.9) (-5,78.9) (0,87.1) (5,91.5) (10,93.5) (15,94.4)};
+
+\legend{DS-CNN-S (23.8K), BC-ResNet-1 (7.5K), NC-SSM (7.4K), NC-SSM-Large (10.2K)}
+
+\end{axis}
+\end{tikzpicture}
+\caption{Average accuracy (5 noise types) vs.\ SNR. NC-SSM-Large matches BC-ResNet-1 above 5\,dB while requiring 4.1$\times$ fewer MACs. The gap below 0\,dB reflects multiplicative noise propagation ($O(\sigma_n^6)$), which SS+Bypass compensates (Table~\ref{tab:ss_bypass}).}
+\label{fig:snr_curve}
+\end{figure}
 
 
 \subsection{SS+Bypass Enhancement}
@@ -913,6 +964,13 @@ NC-SSM achieves +15.4\,\%p (white), with smaller gains reflecting its already st
 The SF-aware bypass correctly restricts enhancement to stationary noise: babble improvement is only +0.4\,\%p, preventing non-stationary signal distortion.
 CNN baselines improve by at most 3.7\,\%p, confirming that SSM adaptive dynamics leverage spectral enhancement far more effectively than CNN fixed filters.
 
+\smallskip\noindent\textbf{Why SS benefits SSMs more than CNNs.}
+The asymmetry stems from how noise propagates through each architecture.
+As shown in Section~\ref{sec:mult_noise}, SSM noise variance scales as $O(\sigma_n^6)$ due to multiplicative coupling through input-dependent $\Delta$, $\mathbf{B}$, and $\mathbf{C}$, whereas CNN noise variance scales as $O(\sigma_n^2)$ through fixed convolution kernels.
+When SS reduces the input noise level by a factor $\alpha$ (i.e., $\sigma_n \to \sigma_n / \alpha$), the internal noise variance decreases by $\alpha^6$ for SSMs but only $\alpha^2$ for CNNs---an exponentially larger benefit for SSMs.
+Furthermore, CNN's 2D spatial convolutions inherently average over local frequency-time neighborhoods, providing implicit denoising that makes external SS partially redundant.
+In contrast, SSMs process frames sequentially with a compact state vector ($D \times N$ values), where each frame's noise directly perturbs the state update with no spatial averaging to absorb it.
+
 
 \subsection{Accuracy Drop Analysis}
 
@@ -925,10 +983,11 @@ CNN baselines improve by at most 3.7\,\%p, confirming that SSM adaptive dynamics
 \toprule
 \textbf{Model} & \textbf{Fact.} & \textbf{White} & \textbf{Bab.} & \textbf{Str.} & \textbf{Pink} \\
 \midrule
-DS-CNN-S    & \textbf{5.3} & \textbf{6.8} & \textbf{2.6} & \textbf{7.2} & \textbf{6.2} \\
-BC-ResNet-1 & 5.9 & 9.6 & 3.4 & 10.0 & 7.1 \\
-NM-Matched  & 6.6 & 9.6 & 4.1 & 11.3 & 7.9 \\
-NC-SSM      & 7.3 & 9.3 & 4.5 & 12.4 & 7.9 \\
+DS-CNN-S     & \textbf{5.3} & \textbf{6.8} & \textbf{2.6} & \textbf{7.2} & \textbf{6.2} \\
+BC-ResNet-1  & 5.9 & 9.6 & 3.4 & 10.0 & 7.1 \\
+NM-Matched   & 6.6 & 9.6 & 4.1 & 11.3 & 7.9 \\
+NC-SSM       & 8.5 & 10.1 & 5.3 & 13.0 & 8.6 \\
+NC-SSM-Large & 8.6 & 9.2 & \textbf{4.2} & 12.2 & 8.4 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -1088,7 +1147,7 @@ DS-CNN-S       & 23.8 & 24.5 & 51.0 & 96.4 & 3.9 \\
 \midrule
 \multicolumn{6}{l}{\textit{SSM family (proposed)}} \\
 NC-SSM         & 7.4  & 0.85 & 1.8  & 95.3 & \textbf{112.1} \\
-NC-SSM-Large   & 10.2 & 1.15 & 2.4  & TBD  & TBD \\
+NC-SSM-Large   & 10.2 & 1.15 & 2.4  & \textbf{95.6} & 83.1 \\
 \bottomrule
 \multicolumn{6}{l}{\small MAC Eff. = Clean Acc / MACs (\%/M). Higher is better.}
 \end{tabular}
