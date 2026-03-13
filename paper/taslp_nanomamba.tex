@@ -47,7 +47,8 @@ This robustness originates from the SSM's input-dependent dynamics, which natura
 However, under severe noise conditions, multiplicative noise propagation through these same parameters degrades performance, particularly when the noise environment is inaccurately estimated at low SNRs.
 NC-SSM addresses this limitation through three complementary mechanisms: (1)~per-sub-band selectivity modulation that adapts SSM dynamics to local noise characteristics, (2)~a Learned Spectral Gate (LSG) for input-level denoising, and (3)~optimized spectral subtraction with adaptive bypass gating for extreme noise conditions.
 With only \textbf{7{,}443~parameters}---fewer than BC-ResNet-1 (7{,}464)---NC-SSM matches the CNN baseline's clean accuracy (95.3\%) while achieving superior robustness across all 35~noise conditions tested.
-Crucially, the SSM architecture provides a fundamental efficiency advantage on edge hardware: NC-SSM requires \textbf{5.5$\times$ fewer MACs} (0.85M vs.\ 4.70M), \textbf{2.8$\times$ lower latency} (3.5\,ms vs.\ 9.8\,ms on Cortex-M7), and \textbf{3.2$\times$ less RAM}, establishing that noise robustness and deployment efficiency are not competing objectives but complementary strengths of noise-conditioned SSMs.
+Scaling to NC-SSM-Large (10{,}201 parameters) further improves clean accuracy to \textbf{95.6\%}, surpassing BC-ResNet-1 while maintaining \textbf{4.1$\times$ fewer MACs}.
+Crucially, the SSM architecture provides a fundamental efficiency advantage on edge hardware: NC-SSM requires \textbf{5.5$\times$ fewer MACs} (0.85M vs.\ 4.70M), \textbf{5.4$\times$ lower latency} (1.8\,ms vs.\ 9.8\,ms on Cortex-M7), and \textbf{3.2$\times$ less RAM}, establishing that noise robustness and deployment efficiency are not competing objectives but complementary strengths of noise-conditioned SSMs.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -84,7 +85,7 @@ We resolve this with \textbf{NC-SSM} (Noise-Conditioned SSM), which addresses th
 \end{enumerate}
 
 NC-SSM achieves all this with only \textbf{7{,}443 parameters}---21 fewer than BC-ResNet-1---while matching its clean accuracy at 95.3\%.
-The decisive advantage is computational: NC-SSM requires \textbf{5.5$\times$ fewer MACs}, \textbf{2.8$\times$ lower latency} on Cortex-M7, and \textbf{3.2$\times$ less RAM}, establishing that noise robustness and deployment efficiency are complementary strengths of noise-conditioned SSMs.
+The decisive advantage is computational: NC-SSM requires \textbf{5.5$\times$ fewer MACs}, \textbf{5.4$\times$ lower latency} (1.8\,ms vs.\ 9.8\,ms on Cortex-M7), and \textbf{3.2$\times$ less RAM}, establishing that noise robustness and deployment efficiency are complementary strengths of noise-conditioned SSMs.
 
 Our contributions are:
 \begin{enumerate}
@@ -95,7 +96,7 @@ Our contributions are:
 
 \item \textbf{NC-SSM architecture}: Noise-conditioned SSM with per-sub-band selectivity modulation, stationarity/spectral-flatness conditioning, Learned Spectral Gate, and optimized spectral enhancement---the most parameter-efficient noise-robust KWS model at 7{,}443 parameters (Sections~\ref{sec:smssm}--\ref{sec:ncssm}).
 
-\item \textbf{Efficiency--robustness Pareto front}: Comprehensive evaluation showing NC-SSM achieves 5.5$\times$ fewer MACs and 2.8$\times$ lower latency than the CNN baseline at matched accuracy, demonstrating that the two objectives are complementary rather than competing (Sections~\ref{sec:results}--\ref{sec:mcu_deploy}).
+\item \textbf{Efficiency--robustness Pareto front}: Comprehensive evaluation showing NC-SSM achieves 5.5$\times$ fewer MACs and 5.4$\times$ lower latency than the CNN baseline at matched accuracy, demonstrating that the two objectives are complementary rather than competing (Sections~\ref{sec:results}--\ref{sec:mcu_deploy}).
 \end{enumerate}
 
 
@@ -768,7 +769,7 @@ Noise is mixed at $\{-15, -10, -5, 0, 5, 10, 15\}$\,dB SNR, yielding $5 \times 7
 
 \begin{table}[t]
 \centering
-\caption{Model configurations. All primary models are within BC-ResNet-1's 7{,}464-parameter budget. NC-SSM achieves the fewest parameters among SSM variants while adding noise-adaptive capabilities.}
+\caption{Model configurations. All primary models are within BC-ResNet-1's 7{,}464-parameter budget; NC-SSM-Large scales beyond this budget to surpass CNN accuracy. NC-SSM achieves the fewest parameters among SSM variants while adding noise-adaptive capabilities.}
 \label{tab:configs}
 \small
 \setlength{\tabcolsep}{3pt}
@@ -783,12 +784,14 @@ SAGN & CNN+LSG & 7{,}240 & 7.1\,KB \\
 NM-Matched (SA-SSM v2) & SSM & 7{,}402 & 7.2\,KB \\
 SM-SSM & SSM & 7{,}440 & 7.3\,KB \\
 \textbf{NC-SSM} & SSM+LSG & \textbf{7{,}443} & \textbf{7.3\,KB} \\
+NC-SSM-Large & SSM+LSG & 10{,}201 & 10.0\,KB \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 Table~\ref{tab:configs} lists all models.
 The SSM progression (NM-Matched $\to$ SM-SSM $\to$ NC-SSM) demonstrates incremental improvements with minimal parameter additions.
+NC-SSM-Large scales capacity via $d_{\text{model}}{=}24$, $N{=}8$ (vs.\ 16, 6), surpassing BC-ResNet-1's accuracy while maintaining $>$4$\times$ efficiency advantage.
 SAGN applies the same LSG front-end to BC-ResNet-1, serving as an SNR-adaptive CNN baseline.
 
 \subsection{Training Details}
@@ -825,7 +828,7 @@ BC-ResNet-1 & 7{,}464 & 95.3 \\
 \midrule
 NM-Matched & 7{,}402 & 95.1 \\
 NC-SSM & 7{,}443 & 95.3 \\
-NC-SSM-Large & 10{,}191 & \textbf{95.6} \\
+NC-SSM-Large & 10{,}201 & \textbf{95.6} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -1203,9 +1206,14 @@ Noise robustness and deployment efficiency are \emph{complementary} strengths, n
 The current evaluation uses a single dataset (GSC V2) with procedurally generated noise.
 Remaining directions include:
 (1)~real-world noise recordings and field tests;
-(2)~scaling to NC-SSM-Large ($\sim$10K params, $d_{\text{model}}{=}24$, $N{=}8$);
-(3)~on-device deployment on physical Cortex-M7 hardware (STM32H7), validating theoretical MAC/latency estimates against measured inference time, peak SRAM usage, and power consumption under realistic always-on KWS workloads;
-(4)~extending structural robustness analysis to other audio tasks.
+(2)~on-device deployment on physical Cortex-M7 hardware (STM32H7), validating theoretical MAC/latency estimates against measured inference time, peak SRAM usage, and power consumption under realistic always-on KWS workloads;
+(3)~extending structural robustness analysis to other audio tasks.
+
+\smallskip\noindent\textbf{Low-SNR performance gap.}
+While NC-SSM-Large matches or exceeds BC-ResNet-1 above $-5$\,dB SNR, a significant accuracy gap persists at extreme noise levels (e.g., white noise at $-15$\,dB: 34.1\% vs.\ 58.6\%).
+This directly reflects the $O(\sigma_n^6)$ vs.\ $O(\sigma_n^2)$ variance gap analyzed in Section~\ref{sec:mult_noise}: CNN fixed kernels absorb noise statistics efficiently through spatial averaging, while SSM state updates amplify noise multiplicatively.
+NC-SSM's per-sub-band selectivity gate already provides \emph{implicit} mixture-of-experts behavior---blending selective and LTI modes per frequency sub-band.
+A promising direction is \textbf{explicit SNR-conditioned mixture of experts} within the SSM block, where structurally different expert pathways (full selective vs.\ noise-hardened LTI with reduced state dimension) are routed by estimated SNR, potentially closing the low-SNR gap while preserving the computational efficiency advantage.
 
 
 % ============================================================
@@ -1217,8 +1225,9 @@ Remaining directions include:
 We presented the first formal analysis of SSM structural noise robustness: input-dependent dynamics ($\Delta$-modulation, $\mathbf{B}$-gating, $\mathbf{C}$-readout) act as implicit noise-adaptive filters, enabling SSMs trained on clean data alone to retain 77.7\% accuracy at 0\,dB---11\,\%p above comparable CNNs.
 We identified multiplicative noise propagation ($O(\sigma_n^6)$ vs.\ $O(\sigma_n^2)$) as the fundamental limitation at low SNR, and proved that LTI-SSM $\equiv$ learned causal convolution.
 
-NC-SSM resolves this through per-sub-band selectivity modulation, Learned Spectral Gate, and optimized spectral subtraction with adaptive bypass, achieving \textbf{7{,}443 parameters}---fewer than BC-ResNet-1 (7{,}464)---while matching its clean accuracy (95.3\%) and providing superior noise robustness.
-The decisive advantage is computational: \textbf{5.5$\times$ fewer MACs}, \textbf{1.8\,ms latency} (vs.\ 9.8\,ms on Cortex-M7), and \textbf{3.2$\times$ less RAM}, establishing that noise robustness and deployment efficiency are complementary properties of noise-conditioned SSMs.
+NC-SSM resolves this through per-sub-band selectivity modulation, Learned Spectral Gate, and optimized spectral subtraction with adaptive bypass, achieving \textbf{7{,}443 parameters}---21 fewer than BC-ResNet-1 (7{,}464)---while matching its clean accuracy (95.3\%) with \textbf{5.5$\times$ fewer MACs} and \textbf{1.8\,ms latency} on Cortex-M7.
+Scaling to NC-SSM-Large (10{,}201 parameters) further improves clean accuracy to \textbf{95.6\%}---surpassing BC-ResNet-1---while maintaining \textbf{4.1$\times$ fewer MACs}, \textbf{2.4\,ms latency}, and \textbf{2.7$\times$ less RAM}.
+These results establish that noise robustness and deployment efficiency are complementary properties of noise-conditioned SSMs.
 
 
 \section*{Acknowledgments}
