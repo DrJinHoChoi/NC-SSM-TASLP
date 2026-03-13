@@ -1582,12 +1582,28 @@ class NoiseCondSMSSM(SelectivityModulatedSSM):
     Extra parameters per block: d_state + 1 + d_state = 2*d_state + 1
       d_state=5: 11/block, 22 total | d_state=6: 13/block, 26 total
 
+    Parameter decoupling (optional, use_param_decouple=True):
+      At low SNR, compute Δ,B,C from temporally smoothed input to break
+      the cubic noise coupling (Δ(x)·B(x)·x → O(σ^6)). The smoothed
+      signal reduces noise in parameter computation while preserving the
+      original noisy signal for state updates. Adds 2 params (scale, bias).
+
     Initialization: all NC-SSM params set to reproduce SM-SSM behavior
     exactly, enabling warm-start from SM-SSM checkpoints.
     """
 
-    def __init__(self, d_inner, d_state=5, n_mels=40, mode='full'):
+    def __init__(self, d_inner, d_state=5, n_mels=40, mode='full',
+                 use_param_decouple=False):
         super().__init__(d_inner, d_state, n_mels, mode)
+
+        # Parameter decoupling for low-SNR noise reduction
+        self.use_param_decouple = use_param_decouple
+        if use_param_decouple:
+            # SNR-adaptive gate: sigmoid(scale * mean_snr + bias)
+            # High SNR → gate≈1 → use original x (full selectivity)
+            # Low SNR → gate≈0 → use smoothed x (break cubic coupling)
+            self.decouple_scale = nn.Parameter(torch.tensor(5.0))
+            self.decouple_bias = nn.Parameter(torch.tensor(-1.0))  # default: slight smoothing
 
         # NC-1: Per-sub-band selectivity scale for B,C gates
         # Each state's σ is driven by its matched frequency sub-band
@@ -1623,9 +1639,23 @@ class NoiseCondSMSSM(SelectivityModulatedSSM):
         N = self.d_state
 
         # ================================================================
-        # 1. Selective parameters (from potentially noisy input x)
+        # 1. Selective parameters — with optional parameter decoupling
+        #    At low SNR, use smoothed input for Δ,B,C projection to break
+        #    the cubic noise coupling: Δ(x)·B(x)·x = O(σ^6) → O(σ^2)
         # ================================================================
-        x_proj = self.x_proj(x)  # (B, L, 2N+1)
+        if self.use_param_decouple:
+            # Causal 3-frame temporal average (no future frames)
+            x_t = x.transpose(1, 2)  # (B, D, L)
+            x_pad = F.pad(x_t, (2, 0), mode='replicate')
+            x_smooth = F.avg_pool1d(x_pad, kernel_size=3, stride=1).transpose(1, 2)
+            # SNR-adaptive gate: high SNR → original, low SNR → smoothed
+            snr_global = snr_mel.mean(dim=-1, keepdim=True)  # (B, L, 1)
+            dg = torch.sigmoid(self.decouple_scale * snr_global + self.decouple_bias)
+            x_for_proj = dg * x + (1.0 - dg) * x_smooth
+        else:
+            x_for_proj = x
+
+        x_proj = self.x_proj(x_for_proj)  # (B, L, 2N+1)
         dt_selective = x_proj[..., :1]
         B_selective = x_proj[..., 1:N + 1]
         C_selective = x_proj[..., N + 1:]
@@ -2806,7 +2836,7 @@ class NanoMambaBlock(nn.Module):
 
     def __init__(self, d_model, d_state=4, d_conv=3, expand=1.5, n_mels=40,
                  ssm_mode='full', use_ssm_v2=False, use_sm_ssm=False,
-                 use_nc_ssm=False):
+                 use_nc_ssm=False, **kwargs):
         super().__init__()
         self.d_model = d_model
         self.d_inner = int(d_model * expand)
@@ -2838,11 +2868,14 @@ class NanoMambaBlock(nn.Module):
             SSMClass = SpectralAwareSSM_v2
         else:
             SSMClass = SpectralAwareSSM
-        self.sa_ssm = SSMClass(
-            d_inner=self.d_inner,
-            d_state=d_state,
-            n_mels=n_mels,
-            mode=ssm_mode)
+        ssm_kwargs = dict(d_inner=self.d_inner, d_state=d_state,
+                          n_mels=n_mels, mode=ssm_mode)
+        if use_nc_ssm and hasattr(SSMClass.__init__, '__code__'):
+            # Pass extra kwargs only if NC-SSM supports them
+            for k in ('use_param_decouple',):
+                if k in kwargs:
+                    ssm_kwargs[k] = kwargs[k]
+        self.sa_ssm = SSMClass(**ssm_kwargs)
 
         # Output projection
         self.out_proj = nn.Linear(self.d_inner, d_model, bias=False)
@@ -2933,7 +2966,8 @@ class NanoMamba(nn.Module):
                  use_spec_augment=False,
                  use_freq_aware=False, n_sub_bands=5, d_sub=4,
                  use_subband_ssm=False,
-                 weight_sharing=False, n_repeats=3):
+                 weight_sharing=False, n_repeats=3,
+                 **ssm_kwargs):
         """
         Args:
             ssm_mode: SA-SSM ablation mode
@@ -3013,6 +3047,7 @@ class NanoMamba(nn.Module):
         self.use_ssm_v2 = use_ssm_v2
         self.use_sm_ssm = use_sm_ssm
         self.use_nc_ssm = use_nc_ssm
+        self._ssm_kwargs = ssm_kwargs  # extra kwargs for SSM (e.g., use_param_decouple)
         self.use_lsg = use_lsg
         self.use_spectral_enhancer = use_spectral_enhancer
         self.use_learnable_enhancer = use_learnable_enhancer
@@ -3124,7 +3159,8 @@ class NanoMamba(nn.Module):
                 ssm_mode=ssm_mode,
                 use_ssm_v2=use_ssm_v2,
                 use_sm_ssm=use_sm_ssm,
-                use_nc_ssm=use_nc_ssm)
+                use_nc_ssm=use_nc_ssm,
+                **self._ssm_kwargs)
             self.blocks = nn.ModuleList([shared_block])
             self.n_repeats = n_repeats
         else:
@@ -3138,7 +3174,8 @@ class NanoMamba(nn.Module):
                     ssm_mode=ssm_mode,
                     use_ssm_v2=use_ssm_v2,
                     use_sm_ssm=use_sm_ssm,
-                    use_nc_ssm=use_nc_ssm)
+                    use_nc_ssm=use_nc_ssm,
+                    **self._ssm_kwargs)
                 for _ in range(n_layers)
             ])
             self.n_repeats = n_layers
@@ -4016,7 +4053,7 @@ def create_nanomamba_nc_matched(n_classes=12):
         use_ssm_v2=True, use_nc_ssm=True, use_lsg=True)
 
 
-def create_nanomamba_nc_large(n_classes=12):
+def create_nanomamba_nc_large(n_classes=12, use_param_decouple=False):
     """NanoMamba-NC-Large: Scaled NC-SSM with 4x MAC advantage over BC-ResNet-1.
 
     Scales up NC-SSM from d_model=20/d_state=6 to d_model=24/d_state=8 while
@@ -4026,15 +4063,17 @@ def create_nanomamba_nc_large(n_classes=12):
       - d_state=8 → 8 frequency sub-bands (vs 6) for finer spectral resolution
       - d_model=24 → wider hidden dimension for richer temporal modeling
 
-    Note: use_tiny_conv removed — TinyConv2D interferes with NC-SSM's
-    per-sub-band SNR estimation by injecting ReLU artifacts into linear mel,
-    causing ~1.4%p clean accuracy degradation (93.9% → expected ~95%+).
+    Args:
+        use_param_decouple: If True, enable parameter decoupling at low SNR.
+            Uses temporally smoothed input for Δ,B,C projection to break
+            O(σ^6) cubic noise coupling. Adds 2 params per block (4 total).
     """
     return NanoMamba(
         n_mels=40, n_classes=n_classes,
         d_model=24, d_state=8, d_conv=3, expand=1.5,
         n_layers=2, use_dual_pcen_v2=True,
-        use_ssm_v2=True, use_nc_ssm=True, use_lsg=True)
+        use_ssm_v2=True, use_nc_ssm=True, use_lsg=True,
+        use_param_decouple=use_param_decouple)
 
 
 # ============================================================================

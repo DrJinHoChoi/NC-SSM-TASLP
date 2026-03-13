@@ -396,7 +396,7 @@ def train_one_epoch(model, train_loader, optimizer, scheduler, device,
                     n_fft=512, hop_length=160, n_mels=40,
                     total_epochs=30, noise_curriculum_v2=False,
                     ss_train=False,
-                    ema=None):
+                    ema=None, low_snr_boost=False):
     """Train one epoch with Per-Sample Multi-Condition Noise Augmentation.
 
     [KEY INSIGHT] Why noise-aug helps NanoMamba MORE than CNN:
@@ -453,7 +453,7 @@ def train_one_epoch(model, train_loader, optimizer, scheduler, device,
     # Phase-based curriculum
     WARM_UP_EPOCHS = 3   # Clean-only warm-up
     GENTLE_END = 10      # Easy noise phase
-    MODERATE_END = 20    # Moderate noise phase
+    MODERATE_END = 15 if low_snr_boost else 20    # Moderate noise phase (earlier hard if boosted)
 
     if epoch < WARM_UP_EPOCHS:
         # Phase 0: Clean-only warm-up — stabilize Expert1 / CNN baseline
@@ -493,9 +493,10 @@ def train_one_epoch(model, train_loader, optimizer, scheduler, device,
             # [v2] Phase 3: Extend to evaluation-matching range (-15dB).
             # Gaussian annealing ensures gradual exposure — extreme samples
             # are initially rare, becoming frequent as _snr_center drops.
-            snr_range = (-15, 10)
+            snr_range = (-15, 5) if low_snr_boost else (-15, 10)
             noise_types_pool = ['factory', 'white', 'babble', 'street', 'pink']
-            phase_name = f"HARD-ALL (ratio={effective_ratio:.2f}, SNR {snr_range[0]}~{snr_range[1]}dB)"
+            boost_tag = "-BOOST" if low_snr_boost else ""
+            phase_name = f"HARD-ALL{boost_tag} (ratio={effective_ratio:.2f}, SNR {snr_range[0]}~{snr_range[1]}dB)"
         else:
             snr_range = (-5, 10)
             noise_types_pool = ['factory', 'white', 'babble', 'street', 'pink']
@@ -2821,6 +2822,7 @@ MODEL_REGISTRY = {
     # NC-SSM: Noise-Conditioned SM-SSM (per-sub-band selectivity + LSG)
     'NanoMamba-NC-Matched': create_nanomamba_nc_matched,
     'NanoMamba-NC-Large': create_nanomamba_nc_large,
+    'NanoMamba-NC-Large-PD': lambda n=12: create_nanomamba_nc_large(n, use_param_decouple=True),
     'DS-CNN-S': lambda n=12: DSCNN_S(n_classes=n),
     'BC-ResNet-1': lambda n=12: BCResNet(n_classes=n, scale=1),
 }
@@ -2885,7 +2887,7 @@ def train_model(model, model_name, train_dataset, val_dataset,
                 checkpoint_dir, device, epochs=30, batch_size=128, lr=3e-3,
                 noise_aug=False, noise_ratio=0.5, noise_curriculum_v2=False,
                 ss_train=False,
-                use_ema=False, ema_decay=0.999):
+                use_ema=False, ema_decay=0.999, low_snr_boost=False):
     """Full training loop with Per-Sample Multi-Condition Noise Augmentation.
 
     [NOVEL] Per-Sample Multi-Condition Training reveals structural differences:
@@ -2994,7 +2996,8 @@ def train_model(model, model_name, train_dataset, val_dataset,
             mel_fb=mel_fb, total_epochs=epochs,
             noise_curriculum_v2=noise_curriculum_v2,
             ss_train=ss_train,
-            ema=ema)
+            ema=ema,
+            low_snr_boost=low_snr_boost)
 
         # Evaluate on CLEAN val set (always clean, fair comparison)
         # Use EMA weights for evaluation if enabled
@@ -3149,6 +3152,10 @@ def main():
                         help='Use v2 noise curriculum: type-staged introduction '
                              '(stationary first, then non-stationary) + '
                              'SNR annealing (Gaussian centered at difficulty frontier)')
+    parser.add_argument('--low_snr_boost', action='store_true',
+                        help='Boost low-SNR training: start hard phase earlier (epoch 15) '
+                             'and use more aggressive SNR range (-15~5dB) in hard phase. '
+                             'Use with --noise_curriculum_v2.')
     parser.add_argument('--ss_train', action='store_true',
                         help='Apply Spectral Subtraction (SS v2) to noisy audio '
                              'DURING training. Model learns to exploit SS-enhanced '
@@ -3247,7 +3254,8 @@ def main():
                 noise_aug=args.noise_aug, noise_ratio=args.noise_ratio,
                 noise_curriculum_v2=args.noise_curriculum_v2,
                 ss_train=args.ss_train,
-                use_ema=args.use_ema, ema_decay=args.ema_decay)
+                use_ema=args.use_ema, ema_decay=args.ema_decay,
+                low_snr_boost=getattr(args, 'low_snr_boost', False))
 
         trained_models[model_name] = model
 

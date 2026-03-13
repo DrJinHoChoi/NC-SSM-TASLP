@@ -1062,8 +1062,12 @@ Our analysis reveals two competing effects in selective SSMs:
 (1)~input-dependent dynamics provide implicit noise adaptation (Section~\ref{sec:ssm_dynamics}), and
 (2)~the same input-dependence creates multiplicative noise coupling with $O(\sigma_n^6)$ variance (Section~\ref{sec:mult_noise}).
 At moderate SNR ($> -5$\,dB), effect (1) dominates---SSMs outperform CNNs even without noise training.
-At extreme SNR ($< -5$\,dB), effect (2) dominates---CNNs with fixed $O(\sigma_n^2)$ propagation absorb noise statistics more efficiently.
-NC-SSM resolves this by smoothly transitioning from selective to LTI dynamics as noise increases, capturing the best of both regimes.
+At extreme SNR ($< -5$\,dB), effect (2) dominates---CNNs with fixed $O(\sigma_n^2)$ propagation absorb noise statistics more efficiently through two mechanisms: (i)~fixed kernels $W$ directly absorb noise statistics during noise-augmented training, since each parameter need only handle $O(\sigma_n^2)$ variance; and (ii)~2D spatial convolutions average noise across both frequency and time neighborhoods, providing implicit denoising that 1D temporal SSM processing lacks.
+
+Crucially, this gap is \emph{not} a fundamental theoretical limitation.
+As shown in Section~\ref{sec:lti_equiv}, LTI-SSM (where $\sigma = 0$) is equivalent to a learned causal convolution with $O(\sigma_n^2)$ variance---matching the CNN bound.
+NC-SSM's selectivity gate enables this transition, but in practice, residual selectivity at extreme noise ($\sigma \approx 0.05$ at $-15$\,dB) still introduces multiplicative coupling: even 1\% selectivity amplifies noise by $\sigma_n^4 \approx 1{,}000\times$ at $-15$\,dB.
+A promising direction is \emph{decoupling} the parameter computation from the noisy input---computing $\Delta_t$, $\mathbf{B}_t$ from a temporally smoothed signal while preserving the original input for state updates---which would break the cubic noise coupling at its source.
 
 \subsection{Selectivity Gate Behavior}
 
