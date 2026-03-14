@@ -542,7 +542,7 @@ def train_one_epoch(model, train_loader, optimizer, scheduler, device,
                     if (epoch >= MODERATE_END and low_snr_boost
                             and len(noise_types_pool) > 0):
                         _wp_weights = np.array([
-                            2.0 if nt in ('white', 'pink') else 1.0
+                            1.3 if nt in ('white', 'pink') else 1.0
                             for nt in noise_types_pool])
                         _wp_weights /= _wp_weights.sum()
                         noise_type_i = noise_types_pool[
@@ -609,26 +609,10 @@ def train_one_epoch(model, train_loader, optimizer, scheduler, device,
 
         loss = criterion(logits, labels)
 
-        # ============================================================
-        # [White/Pink boost] Per-sample loss weighting: emphasize
-        # extreme low-SNR broadband conditions during HARD phase
-        # ============================================================
-        if (effective_noise_aug and effective_ratio > 0 and low_snr_boost
-                and epoch >= MODERATE_END and n_noisy > 0
-                and len(snr_dbs_per_sample) > 0):
-            sample_weights = torch.ones(logits.size(0), device=device)
-            for _wi in range(min(n_noisy, len(snr_dbs_per_sample))):
-                _snr_i = snr_dbs_per_sample[_wi]
-                _nt_i = noise_types_per_sample[_wi]
-                if _snr_i <= -10 and _nt_i in ('white', 'pink'):
-                    sample_weights[_wi] = 2.0
-                elif _snr_i <= -5 and _nt_i in ('white', 'pink'):
-                    sample_weights[_wi] = 1.5
-            if sample_weights.max() > 1.0:
-                per_sample_loss = F.cross_entropy(
-                    logits, labels, label_smoothing=label_smoothing,
-                    reduction='none')
-                loss = (per_sample_loss * sample_weights).mean()
+        # Phase 1B removed: per-sample loss weighting (2.0× for white/pink at
+        # extreme SNR) was too aggressive and caused training instability.
+        # Combined with Phase 1A 2× sampling, it created 66% white/pink bias
+        # and accuracy dropped from 92% to 82% in HARD phase.
 
         # ============================================================
         # NaN safety: detect NaN in logits/loss and skip batch

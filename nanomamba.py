@@ -1824,29 +1824,11 @@ class NoiseCondSMSSM(SelectivityModulatedSSM):
         dA = torch.exp(A.unsqueeze(0).unsqueeze(0) * delta.unsqueeze(-1))
         dB = delta.unsqueeze(-1) * B_param.unsqueeze(2)
 
-        # ★ Phase 2A: Broadband-conditioned temporal smoothing of x
-        #   NASG gates x_proj (selective params) but NOT the state update x.
-        #   At low SNR + broadband noise, smooth x before dBx to reduce
-        #   noise variance in the core u_t = delta * B * x computation.
-        #   smooth_gate ≈ 0 at clean/non-broadband → no effect on other noise types.
-        if self.use_nasg:
-            # broadband_score: computed at NC-3 (L~1764), ≈1 for white, ≈0 for factory
-            # nasg_w: ≈0.018 at -15dB, ≈1 at clean
-            smooth_gate = (broadband_score *
-                           (1.0 - nasg_w.mean(dim=-1, keepdim=True)))  # (B, L, 1)
-            # Only smooth when meaningful (avoid unnecessary computation)
-            if smooth_gate.max().item() > 0.1:
-                x_t = x.transpose(1, 2)  # (B, D, L)
-                x_pad = F.pad(x_t, (4, 0), mode='replicate')  # 5-frame causal
-                x_smooth_state = F.avg_pool1d(
-                    x_pad, kernel_size=5, stride=1).transpose(1, 2)
-                x_for_state = smooth_gate * x_smooth_state + (1.0 - smooth_gate) * x
-            else:
-                x_for_state = x
-        else:
-            x_for_state = x
+        # Phase 2A removed: temporal smoothing was counterproductive at extreme
+        # SNR (-15dB). At smooth_gate≈0.98, it converted broadband noise into a
+        # DC-like trackable signal, making SSM state accumulation worse.
 
-        dBx = dB * x_for_state.unsqueeze(-1)
+        dBx = dB * x.unsqueeze(-1)
 
         adaptive_eps = self.epsilon_max - (
             self.epsilon_max - self.epsilon_min
@@ -1871,16 +1853,19 @@ class NoiseCondSMSSM(SelectivityModulatedSSM):
         h = torch.zeros(Bs, D, N, device=x.device)
 
         for t in range(L):
-            h = (dA[:, t] * h + dBx[:, t] +
-                 adaptive_eps[:, t].unsqueeze(-1) * x_for_state[:, t].unsqueeze(-1))
+            # State input: dBx + adaptive epsilon rescue term
+            state_input = (dBx[:, t] +
+                           adaptive_eps[:, t].unsqueeze(-1) * x[:, t].unsqueeze(-1))
+            # ★ Phase 3A fix: gate state INPUT (not output) to prevent noise
+            #   accumulation in higher-order states at low SNR.
+            #   Before: noise accumulated freely in h, then 97% discarded at output.
+            #   Now: noise entry blocked at source → higher states stay near 0.
+            if state_gate is not None:
+                state_input = state_input * state_gate.unsqueeze(1)
+            h = dA[:, t] * h + state_input
             # NaN safety: clamp hidden state to prevent accumulation overflow
             h = h.clamp(-1e4, 1e4)
-            if state_gate is not None:
-                # Mask output contribution: low-SNR higher states → suppressed
-                y[:, t] = (h * C_param[:, t].unsqueeze(1)
-                           * state_gate.unsqueeze(1)).sum(-1) + self.D * x[:, t]
-            else:
-                y[:, t] = (h * C_param[:, t].unsqueeze(1)).sum(-1) + self.D * x[:, t]
+            y[:, t] = (h * C_param[:, t].unsqueeze(1)).sum(-1) + self.D * x[:, t]
 
         # NaN safety: replace any residual NaN in output
         y = torch.nan_to_num(y, nan=0.0, posinf=1e4, neginf=-1e4)
