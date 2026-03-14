@@ -538,15 +538,31 @@ def train_one_epoch(model, train_loader, optimizer, scheduler, device,
 
                 for i in range(n_noisy):
                     # Random noise type per sample
-                    noise_type_i = noise_types_pool[
-                        np.random.randint(len(noise_types_pool))]
+                    # [White/Pink boost] In HARD phase, oversample broadband noise
+                    if (epoch >= MODERATE_END and low_snr_boost
+                            and len(noise_types_pool) > 0):
+                        _wp_weights = np.array([
+                            2.0 if nt in ('white', 'pink') else 1.0
+                            for nt in noise_types_pool])
+                        _wp_weights /= _wp_weights.sum()
+                        noise_type_i = noise_types_pool[
+                            np.random.choice(len(noise_types_pool), p=_wp_weights)]
+                    else:
+                        noise_type_i = noise_types_pool[
+                            np.random.randint(len(noise_types_pool))]
                     # Random SNR per sample
                     if noise_curriculum_v2 and _snr_center is not None:
                         # [v2] Gaussian centered at current difficulty frontier
-                        # std=4.0 covers the wider Phase 3 range (-15~10dB = 25dB)
-                        snr_db_i = np.clip(
-                            np.random.normal(_snr_center, 4.0),
-                            snr_range[0], snr_range[1])
+                        # [White/Pink boost] lower center + wider std for broadband
+                        if (low_snr_boost and epoch >= MODERATE_END
+                                and noise_type_i in ('white', 'pink')):
+                            snr_db_i = np.clip(
+                                np.random.normal(_snr_center - 3.0, 5.0),
+                                snr_range[0], snr_range[1])
+                        else:
+                            snr_db_i = np.clip(
+                                np.random.normal(_snr_center, 4.0),
+                                snr_range[0], snr_range[1])
                     else:
                         # [v1] Uniform random
                         snr_db_i = np.random.uniform(snr_range[0], snr_range[1])
@@ -592,6 +608,27 @@ def train_one_epoch(model, train_loader, optimizer, scheduler, device,
                 logits = model(audio)
 
         loss = criterion(logits, labels)
+
+        # ============================================================
+        # [White/Pink boost] Per-sample loss weighting: emphasize
+        # extreme low-SNR broadband conditions during HARD phase
+        # ============================================================
+        if (effective_noise_aug and effective_ratio > 0 and low_snr_boost
+                and epoch >= MODERATE_END and n_noisy > 0
+                and len(snr_dbs_per_sample) > 0):
+            sample_weights = torch.ones(logits.size(0), device=device)
+            for _wi in range(min(n_noisy, len(snr_dbs_per_sample))):
+                _snr_i = snr_dbs_per_sample[_wi]
+                _nt_i = noise_types_per_sample[_wi]
+                if _snr_i <= -10 and _nt_i in ('white', 'pink'):
+                    sample_weights[_wi] = 2.0
+                elif _snr_i <= -5 and _nt_i in ('white', 'pink'):
+                    sample_weights[_wi] = 1.5
+            if sample_weights.max() > 1.0:
+                per_sample_loss = F.cross_entropy(
+                    logits, labels, label_smoothing=label_smoothing,
+                    reduction='none')
+                loss = (per_sample_loss * sample_weights).mean()
 
         # ============================================================
         # NaN safety: detect NaN in logits/loss and skip batch

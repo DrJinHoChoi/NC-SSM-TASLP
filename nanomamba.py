@@ -1630,6 +1630,12 @@ class NoiseCondSMSSM(SelectivityModulatedSSM):
             self.nasg_scale = nn.Parameter(torch.tensor(20.0))
             self.nasg_bias = nn.Parameter(torch.tensor(-5.0))
 
+            # Adaptive state masking: reduce effective d_state at low SNR
+            # Higher-indexed states masked first (penalty grows with index)
+            # White -15dB: effective d_state ≈ 4-5 (instead of 8)
+            self.state_mask_scale = nn.Parameter(torch.tensor(8.0))
+            self.state_mask_bias = nn.Parameter(torch.tensor(-2.0))
+
         # NC-1: Per-sub-band selectivity scale for B,C gates
         # Each state's σ is driven by its matched frequency sub-band
         # Initialized to 5.0 (same as parent's sel_scale) for SM-SSM equivalence
@@ -1812,26 +1818,69 @@ class NoiseCondSMSSM(SelectivityModulatedSSM):
             B_param = B_param * (1.0 - self.alpha + self.alpha * B_gate)
 
         # ================================================================
-        # 5. SSM state update (identical to SA-SSM v2)
+        # 5. SSM state update
         # ================================================================
         A = -torch.exp(self.A_log)
         dA = torch.exp(A.unsqueeze(0).unsqueeze(0) * delta.unsqueeze(-1))
         dB = delta.unsqueeze(-1) * B_param.unsqueeze(2)
-        dBx = dB * x.unsqueeze(-1)
+
+        # ★ Phase 2A: Broadband-conditioned temporal smoothing of x
+        #   NASG gates x_proj (selective params) but NOT the state update x.
+        #   At low SNR + broadband noise, smooth x before dBx to reduce
+        #   noise variance in the core u_t = delta * B * x computation.
+        #   smooth_gate ≈ 0 at clean/non-broadband → no effect on other noise types.
+        if self.use_nasg:
+            # broadband_score: computed at NC-3 (L~1764), ≈1 for white, ≈0 for factory
+            # nasg_w: ≈0.018 at -15dB, ≈1 at clean
+            smooth_gate = (broadband_score *
+                           (1.0 - nasg_w.mean(dim=-1, keepdim=True)))  # (B, L, 1)
+            # Only smooth when meaningful (avoid unnecessary computation)
+            if smooth_gate.max().item() > 0.1:
+                x_t = x.transpose(1, 2)  # (B, D, L)
+                x_pad = F.pad(x_t, (4, 0), mode='replicate')  # 5-frame causal
+                x_smooth_state = F.avg_pool1d(
+                    x_pad, kernel_size=5, stride=1).transpose(1, 2)
+                x_for_state = smooth_gate * x_smooth_state + (1.0 - smooth_gate) * x
+            else:
+                x_for_state = x
+        else:
+            x_for_state = x
+
+        dBx = dB * x_for_state.unsqueeze(-1)
 
         adaptive_eps = self.epsilon_max - (
             self.epsilon_max - self.epsilon_min
         ) * snr_smooth_dt
+
+        # ★ Phase 3A: Adaptive state masking — reduce effective d_state at low SNR
+        #   Higher-indexed states are penalized more → masked first.
+        #   White -15dB: effective d_state ≈ 4-5 (from 8), reducing cross-terms.
+        #   Clean: all states active (state_gate ≈ 1).
+        if self.use_nasg:
+            state_snr_mean = snr_smooth_bc.mean(dim=1)  # (B, N) mean across time
+            state_idx_penalty = torch.linspace(
+                0, -2.0, N, device=x.device)  # higher states penalized more
+            state_gate = torch.sigmoid(
+                self.state_mask_scale * state_snr_mean
+                + self.state_mask_bias + state_idx_penalty)  # (B, N)
+            self._last_state_gate = state_gate.detach()
+        else:
+            state_gate = None
 
         y = torch.zeros_like(x)
         h = torch.zeros(Bs, D, N, device=x.device)
 
         for t in range(L):
             h = (dA[:, t] * h + dBx[:, t] +
-                 adaptive_eps[:, t].unsqueeze(-1) * x[:, t].unsqueeze(-1))
+                 adaptive_eps[:, t].unsqueeze(-1) * x_for_state[:, t].unsqueeze(-1))
             # NaN safety: clamp hidden state to prevent accumulation overflow
             h = h.clamp(-1e4, 1e4)
-            y[:, t] = (h * C_param[:, t].unsqueeze(1)).sum(-1) + self.D * x[:, t]
+            if state_gate is not None:
+                # Mask output contribution: low-SNR higher states → suppressed
+                y[:, t] = (h * C_param[:, t].unsqueeze(1)
+                           * state_gate.unsqueeze(1)).sum(-1) + self.D * x[:, t]
+            else:
+                y[:, t] = (h * C_param[:, t].unsqueeze(1)).sum(-1) + self.D * x[:, t]
 
         # NaN safety: replace any residual NaN in output
         y = torch.nan_to_num(y, nan=0.0, posinf=1e4, neginf=-1e4)
@@ -2697,6 +2746,13 @@ class SpectralEnhancer(nn.Module):
         sf_per_frame = (geo_mean / (arith_mean + 1e-10)).clamp(0, 1)  # (B,1,T)
         sf_weight = 0.3 + 0.7 * sf_per_frame  # range [0.3, 1.0]
         oversubtract = oversubtract * sf_weight
+
+        # ★ Phase 4A: Broadband-adaptive oversubtraction boost
+        # White/pink noise (SF > 0.7): boost α by up to 1.5x (3.0 → 4.5)
+        # This is safe because broadband stationary noise benefits from
+        # aggressive removal, while babble/street (SF < 0.5) is unaffected.
+        broadband_boost = torch.sigmoid(8.0 * (sf_per_frame - 0.7))  # 0 below 0.7, 1 above
+        oversubtract = oversubtract * (1.0 + 1.5 * broadband_boost)
 
         # ---- Wiener Gain: multiplicative suppression ----
         # G = max(1 - (α * noise / (mag + eps))^2, freq_floor)
