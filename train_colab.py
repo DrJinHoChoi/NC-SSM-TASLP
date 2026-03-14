@@ -594,18 +594,31 @@ def train_one_epoch(model, train_loader, optimizer, scheduler, device,
                         noisy_audio, n_fft, hop_length, mel_fb, device)
                     logits = model(noisy_mel)
                 else:
-                    logits = model(noisy_audio)
+                    # Build snr_hint for NASG Teacher-Student
+                    # snr_hint = tanh(SNR_dB / 10) for noisy samples,
+                    #            tanh(25/10) ≈ 0.987 for clean samples
+                    snr_hint = torch.full((B,), math.tanh(25.0 / 10.0),
+                                          device=device)
+                    for si, snr_db_val in enumerate(snr_dbs_per_sample):
+                        snr_hint[si] = math.tanh(snr_db_val / 10.0)
+                    logits = model(noisy_audio, snr_hint=snr_hint)
             else:
                 if is_cnn:
                     logits = model(mel)
                 else:
-                    logits = model(audio)
+                    # No noise aug this batch → clean, snr_hint ≈ 1.0
+                    snr_hint = torch.full((B,), math.tanh(25.0 / 10.0),
+                                          device=device)
+                    logits = model(audio, snr_hint=snr_hint)
         else:
             # Clean training (warm-up phase or noise_aug disabled)
             if is_cnn:
                 logits = model(mel)
             else:
-                logits = model(audio)
+                # Clean-only training, snr_hint ≈ 1.0
+                snr_hint = torch.full((B,), math.tanh(25.0 / 10.0),
+                                      device=device)
+                logits = model(audio, snr_hint=snr_hint)
 
         loss = criterion(logits, labels)
 

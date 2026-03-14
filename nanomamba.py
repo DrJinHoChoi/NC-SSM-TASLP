@@ -1621,20 +1621,23 @@ class NoiseCondSMSSM(SelectivityModulatedSSM):
         # Noise-Aware Selective Gating (NASG)
         self.use_nasg = use_nasg
         if use_nasg:
-            # SNR-dependent scaling of x before x_proj
-            # At low SNR (snr≈0.05): nasg_w = sigmoid(20*0.05 - 5) ≈ 0.018
-            #   → selective components reduced to ~2% → effective O(σ²)
-            # At 0dB (snr≈0.5): nasg_w = sigmoid(20*0.5 - 5) ≈ 0.993
+            # SNR Teacher-Student: uses snr_hint = tanh(SNR_dB / 10)
+            #   Input range: [-1, 1] (vs old [0, 1] from broken SNREstimator)
+            # At -15dB (snr_hint=-0.905): nasg_w = sigmoid(5*(-0.905)) ≈ 0.011
+            #   → selective components reduced to ~1% → effective O(σ²)
+            # At 0dB (snr_hint=0): nasg_w = sigmoid(0) = 0.5
+            #   → half selectivity
+            # At clean (snr_hint=0.987): nasg_w = sigmoid(5*0.987) ≈ 0.993
             #   → near-full selectivity preserved
-            # At clean (snr≈1.0): nasg_w = sigmoid(20*1.0 - 5) ≈ 1.0
-            self.nasg_scale = nn.Parameter(torch.tensor(20.0))
-            self.nasg_bias = nn.Parameter(torch.tensor(-5.0))
+            self.nasg_scale = nn.Parameter(torch.tensor(5.0))
+            self.nasg_bias = nn.Parameter(torch.tensor(0.0))
 
             # Adaptive state masking: reduce effective d_state at low SNR
             # Higher-indexed states masked first (penalty grows with index)
             # White -15dB: effective d_state ≈ 4-5 (instead of 8)
-            self.state_mask_scale = nn.Parameter(torch.tensor(8.0))
-            self.state_mask_bias = nn.Parameter(torch.tensor(-2.0))
+            # Re-tuned for snr_hint range [-1, 1]
+            self.state_mask_scale = nn.Parameter(torch.tensor(3.0))
+            self.state_mask_bias = nn.Parameter(torch.tensor(0.0))
 
         # NC-1: Per-sub-band selectivity scale for B,C gates
         # Each state's σ is driven by its matched frequency sub-band
@@ -1657,12 +1660,15 @@ class NoiseCondSMSSM(SelectivityModulatedSSM):
         self.n_sub_bands = d_state
         self.n_mels = n_mels
 
-    def forward(self, x, snr_mel, pcen_gate=None):
+    def forward(self, x, snr_mel, pcen_gate=None, snr_hint=None):
         """
         Args:
             x: (B, L, d_inner) - feature sequence
             snr_mel: (B, L, n_mels) - per-mel-band SNR in [0,1]
             pcen_gate: (B, L) optional - per-frame PCEN routing score
+            snr_hint: (B, L, 1) optional - calibrated SNR signal in [-1,1]
+                      tanh(SNR_dB/10) during training, SF-estimated during inference.
+                      If None, falls back to snr_mel.mean() (broken but backward-compat).
         Returns:
             y: (B, L, d_inner)
         """
@@ -1677,9 +1683,12 @@ class NoiseCondSMSSM(SelectivityModulatedSSM):
         # ================================================================
         if self.use_nasg:
             # NASG: Noise-Aware Selective Gating
-            # Scale input to x_proj by SNR-dependent weight
-            snr_global = snr_mel.mean(dim=-1, keepdim=True)  # (B, L, 1)
-            nasg_w = torch.sigmoid(self.nasg_scale * snr_global + self.nasg_bias)
+            # Use snr_hint (teacher/SF-estimated) if available, else fallback
+            if snr_hint is not None:
+                nasg_input = snr_hint  # (B, L, 1) calibrated [-1,1]
+            else:
+                nasg_input = snr_mel.mean(dim=-1, keepdim=True)  # fallback
+            nasg_w = torch.sigmoid(self.nasg_scale * nasg_input + self.nasg_bias)
             x_for_proj = nasg_w * x
             # Cache for analysis
             self._last_nasg_w = nasg_w.detach()
@@ -1839,11 +1848,17 @@ class NoiseCondSMSSM(SelectivityModulatedSSM):
         #   White -15dB: effective d_state ≈ 4-5 (from 8), reducing cross-terms.
         #   Clean: all states active (state_gate ≈ 1).
         if self.use_nasg:
-            state_snr_mean = snr_smooth_bc.mean(dim=1)  # (B, N) mean across time
+            # Use snr_hint for state masking if available
+            if snr_hint is not None:
+                # snr_hint: (B, L, 1) → mean over time → (B, 1) → expand to (B, N)
+                state_snr_scalar = snr_hint.squeeze(-1).mean(dim=1, keepdim=True)  # (B, 1)
+                state_snr_input = state_snr_scalar.expand(-1, N)  # (B, N)
+            else:
+                state_snr_input = snr_smooth_bc.mean(dim=1)  # (B, N) fallback
             state_idx_penalty = torch.linspace(
                 0, -2.0, N, device=x.device)  # higher states penalized more
             state_gate = torch.sigmoid(
-                self.state_mask_scale * state_snr_mean
+                self.state_mask_scale * state_snr_input
                 + self.state_mask_bias + state_idx_penalty)  # (B, N)
             self._last_state_gate = state_gate.detach()
         else:
@@ -2961,12 +2976,13 @@ class NanoMambaBlock(nn.Module):
         # Output projection
         self.out_proj = nn.Linear(self.d_inner, d_model, bias=False)
 
-    def forward(self, x, snr_mel, pcen_gate=None):
+    def forward(self, x, snr_mel, pcen_gate=None, snr_hint=None):
         """
         Args:
             x: (B, L, d_model) - input sequence
             snr_mel: (B, L, n_mels) - per-mel-band SNR per frame
             pcen_gate: (B, L) optional - per-frame PCEN routing stationarity (v2 only)
+            snr_hint: (B, L, 1) optional - calibrated SNR for NASG gate
         Returns:
             out: (B, L, d_model) - output with residual
         """
@@ -2984,7 +3000,13 @@ class NanoMambaBlock(nn.Module):
         x_branch = F.silu(x_branch)
 
         # Spectral-Aware SSM (v2/SM-SSM/NC-SSM receive pcen_gate for noise-type conditioning)
-        if (self.use_ssm_v2 or self.use_sm_ssm or self.use_nc_ssm) and pcen_gate is not None:
+        # Only NC-SSM supports snr_hint (NASG Teacher-Student)
+        if self.use_nc_ssm:
+            if pcen_gate is not None:
+                y = self.sa_ssm(x_branch, snr_mel, pcen_gate=pcen_gate, snr_hint=snr_hint)
+            else:
+                y = self.sa_ssm(x_branch, snr_mel, snr_hint=snr_hint)
+        elif (self.use_ssm_v2 or self.use_sm_ssm) and pcen_gate is not None:
             y = self.sa_ssm(x_branch, snr_mel, pcen_gate=pcen_gate)
         else:
             y = self.sa_ssm(x_branch, snr_mel)
@@ -3129,6 +3151,12 @@ class NanoMamba(nn.Module):
         self.use_sm_ssm = use_sm_ssm
         self.use_nc_ssm = use_nc_ssm
         self._ssm_kwargs = ssm_kwargs  # extra kwargs for SSM (e.g., use_param_decouple)
+        self.use_nasg_model = ssm_kwargs.get('use_nasg', False)
+        # SNR Teacher-Student: SF→SNR fallback estimator for inference
+        # When snr_hint=None (inference), estimate SNR from spectral flatness
+        if self.use_nasg_model:
+            self.sf_to_snr_scale = nn.Parameter(torch.tensor(-2.0))  # SF high → low SNR
+            self.sf_to_snr_bias = nn.Parameter(torch.tensor(0.5))
         self.use_lsg = use_lsg
         self.use_spectral_enhancer = use_spectral_enhancer
         self.use_learnable_enhancer = use_learnable_enhancer
@@ -3463,10 +3491,13 @@ class NanoMamba(nn.Module):
             return self.multi_pcen._last_gate_l2
         return None
 
-    def forward(self, audio):
+    def forward(self, audio, snr_hint=None):
         """
         Args:
             audio: (B, T) raw waveform at 16kHz
+            snr_hint: (B,) or (B,1) optional — calibrated SNR in [-1,1].
+                During training: tanh(SNR_dB / 10) for noisy, ~0.987 for clean.
+                During inference: None → estimated from spectral flatness.
         Returns:
             logits: (B, n_classes)
         """
@@ -3482,6 +3513,28 @@ class NanoMamba(nn.Module):
         # Transpose to (B, T, n_mels) for sequence processing
         x = mel.transpose(1, 2)  # (B, T, n_mels)
         snr = snr_mel.transpose(1, 2)  # (B, T, n_mels)
+        B, L = x.shape[0], x.shape[1]
+
+        # ================================================================
+        # SNR Teacher-Student: prepare snr_hint for NASG
+        # ================================================================
+        snr_hint_expanded = None
+        if self.use_nasg_model:
+            if snr_hint is not None:
+                # Training: use oracle SNR (B,) or (B,1) → (B, L, 1)
+                snr_hint_expanded = snr_hint.view(B, 1, 1).expand(-1, L, -1)
+            else:
+                # Inference: estimate SNR from spectral flatness (SF)
+                # SF = geometric_mean / arithmetic_mean ∈ [0, 1]
+                # White noise: SF ≈ 0.95, clean speech: SF ≈ 0.1-0.2
+                mel_safe = mel.clamp(min=1e-6)  # (B, n_mels, T)
+                log_mean = torch.log(mel_safe).mean(dim=1)  # (B, T)
+                arith_mean = mel_safe.mean(dim=1)  # (B, T)
+                sf = torch.exp(log_mean) / (arith_mean + 1e-8)  # (B, T)
+                sf_global = sf.mean(dim=-1, keepdim=True)  # (B, 1)
+                snr_est = torch.tanh(
+                    self.sf_to_snr_scale * sf_global + self.sf_to_snr_bias)
+                snr_hint_expanded = snr_est.unsqueeze(-1).expand(-1, L, -1)  # (B, L, 1)
 
         # Patch projection
         x = self.patch_proj(x)  # (B, T, d_model)
@@ -3492,15 +3545,17 @@ class NanoMamba(nn.Module):
         if self.use_ssm_v2 or self.use_sm_ssm or self.use_nc_ssm:
             pcen_gate = self.get_routing_gate(per_frame=True)  # (B, T) or None
 
-        # SA-SSM blocks (each receives SNR + optional pcen_gate)
+        # SA-SSM blocks (each receives SNR + optional pcen_gate + snr_hint)
         if self.weight_sharing:
             for i in range(self.n_repeats):
-                x = self.blocks[0](x, snr, pcen_gate=pcen_gate)
+                x = self.blocks[0](x, snr, pcen_gate=pcen_gate,
+                                   snr_hint=snr_hint_expanded)
                 if self.use_freq_aware:
                     x = self.sub_band_norms[min(i, len(self.sub_band_norms) - 1)](x)
         else:
             for i, block in enumerate(self.blocks):
-                x = block(x, snr, pcen_gate=pcen_gate)
+                x = block(x, snr, pcen_gate=pcen_gate,
+                          snr_hint=snr_hint_expanded)
                 if self.use_freq_aware:
                     x = self.sub_band_norms[i](x)
 
