@@ -2823,6 +2823,7 @@ MODEL_REGISTRY = {
     'NanoMamba-NC-Matched': create_nanomamba_nc_matched,
     'NanoMamba-NC-Large': create_nanomamba_nc_large,
     'NanoMamba-NC-Large-PD': lambda n=12: create_nanomamba_nc_large(n, use_param_decouple=True),
+    'NanoMamba-NC-Large-NASG': lambda n=12: create_nanomamba_nc_large(n, use_nasg=True),
     'DS-CNN-S': lambda n=12: DSCNN_S(n_classes=n),
     'BC-ResNet-1': lambda n=12: BCResNet(n_classes=n, scale=1),
 }

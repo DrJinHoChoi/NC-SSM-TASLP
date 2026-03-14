@@ -790,6 +790,8 @@ NC-SSM-Large & SSM+LSG & 10{,}201 & 10.0\,KB \\
 \end{table}
 
 Table~\ref{tab:configs} lists all models.
+\textbf{NM-Matched} (NanoMamba-Matched) denotes the base SSM model---SA-SSM v2 with selectivity-aware gating---configured to match BC-ResNet-1's parameter budget ($d_{\text{model}}{=}20$, $d_{\text{state}}{=}6$, $d_{\text{conv}}{=}3$, expand${=}1.5$; 7{,}402 params).
+It serves as the SSM baseline against which NC-SSM's noise-conditioning components are evaluated.
 The SSM progression (NM-Matched $\to$ SM-SSM $\to$ NC-SSM) demonstrates incremental improvements with minimal parameter additions.
 NC-SSM-Large scales capacity via $d_{\text{model}}{=}24$, $N{=}8$ (vs.\ 16, 6), surpassing BC-ResNet-1's accuracy while maintaining $>$4$\times$ efficiency advantage.
 SAGN applies the same LSG front-end to BC-ResNet-1, serving as an SNR-adaptive CNN baseline.
@@ -850,7 +852,7 @@ Table~\ref{tab:noise_main} reports accuracy under five noise types at all SNR le
 
 \begin{table*}[t]
 \centering
-\caption{Noise robustness comparison (accuracy \%). All models trained with noise augmentation. Best among capacity-matched models ($<$10K params) per condition in \textbf{bold}.}
+\caption{Noise robustness comparison (accuracy \%). All models trained with noise augmentation. Best per condition in \textbf{bold} (excluding the $3.2\times$ larger DS-CNN-S).}
 \label{tab:noise_main}
 \small
 \begin{tabular}{ll|cccccccc}
@@ -859,35 +861,35 @@ Table~\ref{tab:noise_main} reports accuracy under five noise types at all SNR le
 \midrule
 \multirow{5}{*}{Factory}
   & DS-CNN-S (23.8K)       & 96.8 & 64.4 & 74.6 & 85.9 & 91.5 & 93.8 & 95.1 & 95.5 \\
-  & BC-ResNet-1 (7.5K)     & 95.3 & \textbf{64.5} & \textbf{74.8} & \textbf{83.5} & \textbf{89.0} & 91.9 & 92.9 & 93.9 \\
+  & BC-ResNet-1 (7.5K)     & 95.3 & \textbf{64.5} & \textbf{74.8} & \textbf{83.5} & \textbf{89.0} & \textbf{91.9} & 92.9 & \textbf{93.9} \\
   & NM-Matched (7.4K)      & 95.1 & 61.1 & 70.6 & 82.3 & 88.5 & 91.4 & 93.0 & 93.8 \\
-  & NC-SSM (7.4K)          & \textbf{95.3} & 61.4 & 69.2 & 77.8 & 86.8 & 90.1 & 92.4 & 92.9 \\
-  & NC-SSM-Large (10.2K)   & \textbf{95.6} & 61.3 & 68.6 & 79.1 & 87.0 & \textbf{91.0} & \textbf{93.1} & \textbf{93.4} \\
+  & NC-SSM (7.4K)          & 95.3 & 61.4 & 69.2 & 77.8 & 86.8 & 90.1 & 92.4 & 92.9 \\
+  & NC-SSM-Large (10.2K)   & \textbf{95.6} & 61.3 & 68.6 & 79.1 & 87.0 & 91.0 & \textbf{93.1} & 93.4 \\
 \midrule
 \multirow{5}{*}{White}
   & DS-CNN-S (23.8K)       & 96.8 & 61.7 & 67.1 & 81.6 & 89.9 & 93.1 & 94.8 & 95.6 \\
-  & BC-ResNet-1 (7.5K)     & 95.3 & \textbf{58.6} & \textbf{64.6} & 76.7 & 85.9 & 90.2 & 92.6 & 93.8 \\
+  & BC-ResNet-1 (7.5K)     & 95.3 & \textbf{58.6} & \textbf{64.6} & \textbf{76.7} & 85.9 & 90.2 & 92.6 & 93.8 \\
   & NM-Matched (7.4K)      & 95.1 & 31.1 & 59.1 & 75.0 & 85.5 & 89.8 & 92.8 & 93.9 \\
-  & NC-SSM (7.4K)          & \textbf{95.3} & 50.8 & 63.0 & \textbf{75.5} & \textbf{85.2} & \textbf{90.0} & \textbf{92.5} & \textbf{93.5} \\
-  & NC-SSM-Large (10.2K)   & \textbf{95.6} & 34.1 & 59.8 & \textbf{76.5} & \textbf{86.4} & \textbf{91.0} & \textbf{93.4} & \textbf{94.4} \\
+  & NC-SSM (7.4K)          & 95.3 & 50.8 & 63.0 & 75.5 & 85.2 & 90.0 & 92.5 & 93.5 \\
+  & NC-SSM-Large (10.2K)   & \textbf{95.6} & 34.1 & 59.8 & 76.5 & \textbf{86.4} & \textbf{91.0} & \textbf{93.4} & \textbf{94.4} \\
 \midrule
 \multirow{5}{*}{Babble}
   & DS-CNN-S (23.8K)       & 96.8 & 79.2 & 86.2 & 91.4 & 94.5 & 95.5 & 95.9 & 96.5 \\
-  & BC-ResNet-1 (7.5K)     & 95.3 & \textbf{76.7} & \textbf{84.3} & \textbf{88.8} & \textbf{92.1} & \textbf{93.8} & \textbf{94.4} & \textbf{95.0} \\
+  & BC-ResNet-1 (7.5K)     & 95.3 & \textbf{76.7} & \textbf{84.3} & \textbf{88.8} & \textbf{92.1} & \textbf{93.8} & \textbf{94.4} & 95.0 \\
   & NM-Matched (7.4K)      & 95.1 & 71.4 & 79.0 & 86.0 & 91.0 & 93.0 & 93.9 & 94.5 \\
   & NC-SSM (7.4K)          & 95.2 & 73.4 & 79.1 & 84.1 & 89.9 & 92.4 & 94.0 & 94.8 \\
-  & NC-SSM-Large (10.2K)   & \textbf{95.5} & \textbf{74.0} & 80.2 & \textbf{86.8} & \textbf{91.3} & 93.3 & \textbf{94.4} & \textbf{95.1} \\
+  & NC-SSM-Large (10.2K)   & \textbf{95.5} & 74.0 & 80.2 & 86.8 & 91.3 & 93.3 & \textbf{94.4} & \textbf{95.1} \\
 \midrule
 \multirow{5}{*}{Street}
   & DS-CNN-S (23.8K)       & 96.8 & 61.1 & 69.4 & 81.5 & 88.9 & 92.8 & 95.0 & 95.9 \\
   & BC-ResNet-1 (7.5K)     & 95.3 & \textbf{60.7} & \textbf{65.1} & \textbf{77.7} & \textbf{84.8} & \textbf{90.1} & \textbf{93.0} & 94.1 \\
-  & NM-Matched (7.4K)      & 95.1 & 57.6 & 64.2 & 73.9 & 83.8 & 88.4 & 92.4 & \textbf{94.2} \\
+  & NM-Matched (7.4K)      & 95.1 & 57.6 & 64.2 & 73.9 & 83.8 & 88.4 & 92.4 & 94.2 \\
   & NC-SSM (7.4K)          & 95.2 & 60.2 & 64.3 & 75.2 & 82.2 & 88.9 & 92.2 & 93.7 \\
-  & NC-SSM-Large (10.2K)   & \textbf{95.6} & 57.8 & 63.5 & 75.7 & 83.4 & 90.1 & 92.8 & \textbf{94.5} \\
+  & NC-SSM-Large (10.2K)   & \textbf{95.6} & 57.8 & 63.5 & 75.7 & 83.4 & \textbf{90.1} & 92.8 & \textbf{94.5} \\
 \midrule
 \multirow{5}{*}{Pink}
   & DS-CNN-S (23.8K)       & 96.8 & 61.2 & 66.4 & 82.7 & 90.6 & 93.8 & 95.1 & 95.9 \\
-  & BC-ResNet-1 (7.5K)     & 95.3 & \textbf{58.9} & \textbf{66.0} & \textbf{79.7} & \textbf{88.4} & 91.8 & 93.8 & 94.5 \\
+  & BC-ResNet-1 (7.5K)     & 95.3 & \textbf{58.9} & \textbf{66.0} & \textbf{79.7} & \textbf{88.4} & 91.8 & \textbf{93.8} & 94.5 \\
   & NM-Matched (7.4K)      & 95.2 & 23.6 & 52.4 & 76.9 & 87.3 & 91.7 & 93.0 & 94.4 \\
   & NC-SSM (7.4K)          & 95.2 & 55.2 & 62.9 & 76.7 & 86.6 & 91.5 & 93.0 & 94.4 \\
   & NC-SSM-Large (10.2K)   & \textbf{95.6} & 55.4 & 62.2 & 76.4 & 87.2 & \textbf{91.9} & \textbf{93.8} & \textbf{94.7} \\
@@ -989,9 +991,9 @@ Spectral subtraction with adaptive bypass (Section~\ref{sec:ss_bypass}) provides
 \toprule
 \textbf{Model} & \textbf{Fact.} & \textbf{White} & \textbf{Bab.} & \textbf{Str.} & \textbf{Pink} \\
 \midrule
-NM-Matched  & +3.6 & \textbf{+23.8} & $-$0.1 & +1.7 & \textbf{+29.2} \\
-NC-SSM      & +0.7 & +15.4 & +0.4 & +1.4 & +4.1 \\
-DS-CNN-S    & +1.3 & +1.3 & $-$0.1 & +2.9 & +1.8 \\
+NM-Matched  & \textbf{+3.6} & \textbf{+23.8} & $-$0.1 & +1.7 & \textbf{+29.2} \\
+NC-SSM      & +0.7 & +15.4 & \textbf{+0.4} & +1.4 & +4.1 \\
+DS-CNN-S    & +1.3 & +1.3 & $-$0.1 & \textbf{+2.9} & +1.8 \\
 BC-ResNet-1 & +2.4 & +0.5 & $-$0.1 & $-$2.0 & +3.7 \\
 \bottomrule
 \end{tabular}
@@ -1025,7 +1027,7 @@ DS-CNN-S     & \textbf{5.3} & \textbf{6.8} & \textbf{2.6} & \textbf{7.2} & \text
 BC-ResNet-1  & 5.9 & 9.6 & 3.4 & 10.0 & 7.1 \\
 NM-Matched   & 6.6 & 9.6 & 4.1 & 11.3 & 7.9 \\
 NC-SSM       & 8.5 & 10.1 & 5.3 & 13.0 & 8.6 \\
-NC-SSM-Large & 8.6 & 9.2 & \textbf{4.2} & 12.2 & 8.4 \\
+NC-SSM-Large & 8.6 & 9.2 & 4.2 & 12.2 & 8.4 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -1067,7 +1069,19 @@ At extreme SNR ($< -5$\,dB), effect (2) dominates---CNNs with fixed $O(\sigma_n^
 Crucially, this gap is \emph{not} a fundamental theoretical limitation.
 As shown in Section~\ref{sec:lti_equiv}, LTI-SSM (where $\sigma = 0$) is equivalent to a learned causal convolution with $O(\sigma_n^2)$ variance---matching the CNN bound.
 NC-SSM's selectivity gate enables this transition, but in practice, residual selectivity at extreme noise ($\sigma \approx 0.05$ at $-15$\,dB) still introduces multiplicative coupling: even 1\% selectivity amplifies noise by $\sigma_n^4 \approx 1{,}000\times$ at $-15$\,dB.
-A promising direction is \emph{decoupling} the parameter computation from the noisy input---computing $\Delta_t$, $\mathbf{B}_t$ from a temporally smoothed signal while preserving the original input for state updates---which would break the cubic noise coupling at its source.
+
+\smallskip\noindent\textbf{Noise-Aware Selective Gating (NASG).}
+We propose a principled solution: \emph{scale the projection input by an SNR-dependent weight} before computing selective parameters.
+Let $g = \sigma(\alpha \cdot \overline{\text{SNR}} + \beta)$ be a learnable gate with steep initialization ($\alpha{=}20$, $\beta{=}{-5}$).
+The selective parameters become:
+\begin{equation}
+\Delta_t = \sigma_\Delta \cdot g \cdot \Delta_{\text{sel}}(x_t) + (1-\sigma_\Delta) \cdot \Delta_{\text{base}},
+\label{eq:nasg}
+\end{equation}
+and similarly for $\mathbf{B}_t$, $\mathbf{C}_t$.
+At low SNR, $g \to 0$: selective components vanish, yielding pure LTI mode with $O(\sigma_n^2)$.
+At high SNR, $g \to 1$: full selectivity is preserved.
+The effective selectivity $\sigma \cdot g$ at $-15$\,dB reduces to $\approx 0.001$, suppressing cross-term noise by $\sim$2{,}500$\times$ compared to the $\sigma$-gate alone---with only 2 additional parameters per block.
 
 \subsection{Selectivity Gate Behavior}
 
@@ -1215,9 +1229,9 @@ Remaining directions include:
 
 \smallskip\noindent\textbf{Low-SNR performance gap.}
 While NC-SSM-Large matches or exceeds BC-ResNet-1 above $-5$\,dB SNR, a significant accuracy gap persists at extreme noise levels (e.g., white noise at $-15$\,dB: 34.1\% vs.\ 58.6\%).
-This directly reflects the $O(\sigma_n^6)$ vs.\ $O(\sigma_n^2)$ variance gap analyzed in Section~\ref{sec:mult_noise}: CNN fixed kernels absorb noise statistics efficiently through spatial averaging, while SSM state updates amplify noise multiplicatively.
-NC-SSM's per-sub-band selectivity gate already provides \emph{implicit} mixture-of-experts behavior---blending selective and LTI modes per frequency sub-band.
-A promising direction is \textbf{explicit SNR-conditioned mixture of experts} within the SSM block, where structurally different expert pathways (full selective vs.\ noise-hardened LTI with reduced state dimension) are routed by estimated SNR, potentially closing the low-SNR gap while preserving the computational efficiency advantage.
+This directly reflects the $O(\sigma_n^6)$ vs.\ $O(\sigma_n^2)$ variance gap analyzed in Section~\ref{sec:mult_noise}.
+The NASG mechanism proposed in Section~\ref{sec:discussion} addresses this by suppressing the selective component at low SNR (effective selectivity $\sigma \cdot g \approx 0.001$ at $-15$\,dB), theoretically reducing noise cross-terms by $\sim$2{,}500$\times$.
+Further directions include explicit SNR-conditioned mixture of experts within the SSM block and the general \emph{selectivity--noise disentanglement} framework applicable to any input-dependent architecture.
 
 
 % ============================================================

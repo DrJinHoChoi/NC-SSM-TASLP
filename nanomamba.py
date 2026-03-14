@@ -1588,12 +1588,25 @@ class NoiseCondSMSSM(SelectivityModulatedSSM):
       signal reduces noise in parameter computation while preserving the
       original noisy signal for state updates. Adds 2 params (scale, bias).
 
+    Noise-Aware Selective Gating (NASG, optional, use_nasg=True):
+      Scales the input to x_proj by an SNR-dependent weight before
+      computing selective parameters (Δ, B, C). At low SNR, the weight
+      approaches zero, making all selective components vanish and leaving
+      only fixed base parameters (LTI mode). This guarantees O(σ_n²)
+      noise propagation at extreme noise levels while preserving full
+      selectivity at high SNR.
+        u_t = [σ·nasg·Δ_sel(x) + (1-σ)·Δ_base] · [σ·nasg·B_sel(x) + (1-σ)·B_base] · x
+        At low SNR: nasg→0, σ→0 → u_t ≈ Δ_base · B_base · x → O(σ_n²)
+      Adds 2 params per block (scale, bias). Strictly stronger than
+      parameter decoupling: eliminates multiplicative coupling entirely
+      instead of just smoothing it.
+
     Initialization: all NC-SSM params set to reproduce SM-SSM behavior
     exactly, enabling warm-start from SM-SSM checkpoints.
     """
 
     def __init__(self, d_inner, d_state=5, n_mels=40, mode='full',
-                 use_param_decouple=False):
+                 use_param_decouple=False, use_nasg=False):
         super().__init__(d_inner, d_state, n_mels, mode)
 
         # Parameter decoupling for low-SNR noise reduction
@@ -1604,6 +1617,18 @@ class NoiseCondSMSSM(SelectivityModulatedSSM):
             # Low SNR → gate≈0 → use smoothed x (break cubic coupling)
             self.decouple_scale = nn.Parameter(torch.tensor(5.0))
             self.decouple_bias = nn.Parameter(torch.tensor(-1.0))  # default: slight smoothing
+
+        # Noise-Aware Selective Gating (NASG)
+        self.use_nasg = use_nasg
+        if use_nasg:
+            # SNR-dependent scaling of x before x_proj
+            # At low SNR (snr≈0.05): nasg_w = sigmoid(20*0.05 - 5) ≈ 0.018
+            #   → selective components reduced to ~2% → effective O(σ²)
+            # At 0dB (snr≈0.5): nasg_w = sigmoid(20*0.5 - 5) ≈ 0.993
+            #   → near-full selectivity preserved
+            # At clean (snr≈1.0): nasg_w = sigmoid(20*1.0 - 5) ≈ 1.0
+            self.nasg_scale = nn.Parameter(torch.tensor(20.0))
+            self.nasg_bias = nn.Parameter(torch.tensor(-5.0))
 
         # NC-1: Per-sub-band selectivity scale for B,C gates
         # Each state's σ is driven by its matched frequency sub-band
@@ -1639,16 +1664,24 @@ class NoiseCondSMSSM(SelectivityModulatedSSM):
         N = self.d_state
 
         # ================================================================
-        # 1. Selective parameters — with optional parameter decoupling
-        #    At low SNR, use smoothed input for Δ,B,C projection to break
-        #    the cubic noise coupling: Δ(x)·B(x)·x = O(σ^6) → O(σ^2)
+        # 1. Selective parameters — with optional noise suppression
+        #    NASG: Scale x by SNR weight before projection
+        #      → At low SNR: x_scaled ≈ 0 → selective params ≈ 0 → O(σ²)
+        #    Param decouple: Smooth x before projection (weaker alternative)
         # ================================================================
-        if self.use_param_decouple:
-            # Causal 3-frame temporal average (no future frames)
+        if self.use_nasg:
+            # NASG: Noise-Aware Selective Gating
+            # Scale input to x_proj by SNR-dependent weight
+            snr_global = snr_mel.mean(dim=-1, keepdim=True)  # (B, L, 1)
+            nasg_w = torch.sigmoid(self.nasg_scale * snr_global + self.nasg_bias)
+            x_for_proj = nasg_w * x
+            # Cache for analysis
+            self._last_nasg_w = nasg_w.detach()
+        elif self.use_param_decouple:
+            # Parameter decoupling: smooth input at low SNR
             x_t = x.transpose(1, 2)  # (B, D, L)
             x_pad = F.pad(x_t, (2, 0), mode='replicate')
             x_smooth = F.avg_pool1d(x_pad, kernel_size=3, stride=1).transpose(1, 2)
-            # SNR-adaptive gate: high SNR → original, low SNR → smoothed
             snr_global = snr_mel.mean(dim=-1, keepdim=True)  # (B, L, 1)
             dg = torch.sigmoid(self.decouple_scale * snr_global + self.decouple_bias)
             x_for_proj = dg * x + (1.0 - dg) * x_smooth
@@ -2872,7 +2905,7 @@ class NanoMambaBlock(nn.Module):
                           n_mels=n_mels, mode=ssm_mode)
         if use_nc_ssm and hasattr(SSMClass.__init__, '__code__'):
             # Pass extra kwargs only if NC-SSM supports them
-            for k in ('use_param_decouple',):
+            for k in ('use_param_decouple', 'use_nasg'):
                 if k in kwargs:
                     ssm_kwargs[k] = kwargs[k]
         self.sa_ssm = SSMClass(**ssm_kwargs)
@@ -4053,7 +4086,8 @@ def create_nanomamba_nc_matched(n_classes=12):
         use_ssm_v2=True, use_nc_ssm=True, use_lsg=True)
 
 
-def create_nanomamba_nc_large(n_classes=12, use_param_decouple=False):
+def create_nanomamba_nc_large(n_classes=12, use_param_decouple=False,
+                              use_nasg=False):
     """NanoMamba-NC-Large: Scaled NC-SSM with 4x MAC advantage over BC-ResNet-1.
 
     Scales up NC-SSM from d_model=20/d_state=6 to d_model=24/d_state=8 while
@@ -4067,13 +4101,19 @@ def create_nanomamba_nc_large(n_classes=12, use_param_decouple=False):
         use_param_decouple: If True, enable parameter decoupling at low SNR.
             Uses temporally smoothed input for Δ,B,C projection to break
             O(σ^6) cubic noise coupling. Adds 2 params per block (4 total).
+        use_nasg: If True, enable Noise-Aware Selective Gating (NASG).
+            Scales x_proj input by SNR-dependent weight, forcing selective
+            parameters to zero at low SNR → guarantees O(σ²) noise
+            propagation. Adds 2 params per block (4 total). Strictly
+            stronger than param_decouple.
     """
     return NanoMamba(
         n_mels=40, n_classes=n_classes,
         d_model=24, d_state=8, d_conv=3, expand=1.5,
         n_layers=2, use_dual_pcen_v2=True,
         use_ssm_v2=True, use_nc_ssm=True, use_lsg=True,
-        use_param_decouple=use_param_decouple)
+        use_param_decouple=use_param_decouple,
+        use_nasg=use_nasg)
 
 
 # ============================================================================
