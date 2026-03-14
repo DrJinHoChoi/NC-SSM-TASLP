@@ -1869,6 +1869,13 @@ class NoiseCondSMSSM(SelectivityModulatedSSM):
 
         # NaN safety: replace any residual NaN in output
         y = torch.nan_to_num(y, nan=0.0, posinf=1e4, neginf=-1e4)
+
+        # Cache diagnostic: hidden state variance per state dimension
+        # h shape: (B, D, N) — final hidden state after full sequence
+        self._last_h_var = (h.detach() ** 2).mean(dim=(0, 1))  # (N,) per-state mean ||h||²
+        self._last_h_norm = h.detach().norm(dim=1).mean(dim=0)  # (N,) per-state ||h|| mean
+        self._last_y_var = (y.detach() ** 2).mean()  # scalar: output variance
+
         return y
 
 

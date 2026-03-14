@@ -1486,6 +1486,208 @@ def evaluate_noisy(model, val_loader, device, noise_type='factory',
     return 100. * correct / total
 
 
+# ============================================================================
+# Noise Propagation Diagnostic — CNN vs SSM comparison
+# ============================================================================
+
+@torch.no_grad()
+def diagnose_noise_propagation(model, val_loader, device, dataset_audios=None,
+                               cnn_model=None, mel_fb=None,
+                               noise_types=('white', 'pink', 'factory'),
+                               snr_dbs=(-15, -5, 0, 10),
+                               max_batches=5):
+    """Measure and compare noise propagation between SSM and CNN models.
+
+    Theory check: NC-SSM with NASG should achieve Var[y_noise] ∝ σ² (= CNN bound).
+    State masking should further reduce the constant factor.
+
+    Prints a diagnostic table:
+      - Per-state hidden state ||h_n||² (SSM only)
+      - Output variance Var[y] for both SSM and CNN
+      - NASG gate value g (should → 0 at low SNR)
+      - State gate values m_n (should reduce at low SNR)
+      - Noise amplification ratio: Var[y_noisy] / Var[y_clean]
+
+    Args:
+        model: NanoMamba model (SSM)
+        val_loader: validation data loader
+        device: torch device
+        dataset_audios: for babble noise generation
+        cnn_model: optional CNN model for A/B comparison
+        mel_fb: mel filterbank (required for CNN)
+        noise_types: noise types to test
+        snr_dbs: SNR levels to test (dB)
+        max_batches: number of batches to average over
+    """
+    model.eval()
+    if cnn_model is not None:
+        cnn_model.eval()
+
+    print("\n" + "=" * 80)
+    print("  NOISE PROPAGATION DIAGNOSTIC — CNN vs NC-SSM (NASG)")
+    print("  Theory: Var[y] = C · σ² for both CNN and LTI-SSM")
+    print("  Goal: NC-SSM's C_masked ≤ C_CNN (lower constant factor)")
+    print("=" * 80)
+
+    # 1. Measure clean baseline
+    ssm_clean_var = 0.0
+    cnn_clean_var = 0.0
+    n_clean = 0
+    for batch_idx, (mel, labels, audio) in enumerate(val_loader):
+        if batch_idx >= max_batches:
+            break
+        audio = audio.to(device)
+        _ = model(audio)
+        # Collect output variance from SSM blocks
+        for block in _get_ssm_blocks(model):
+            ssm_clean_var += block._last_y_var.item()
+        n_clean += 1
+        if cnn_model is not None and mel_fb is not None:
+            mel_input = _compute_mel_batch(audio, 512, 160, mel_fb, device)
+            _ = cnn_model(mel_input)
+            # For CNN: measure output of final conv layer
+            cnn_clean_var += _get_cnn_output_var(cnn_model)
+
+    n_blocks = len(_get_ssm_blocks(model))
+    ssm_clean_var /= max(n_clean * n_blocks, 1)
+    cnn_clean_var /= max(n_clean, 1)
+
+    print(f"\n  📊 Clean baseline:")
+    print(f"     SSM output Var[y_clean] = {ssm_clean_var:.6f}")
+    if cnn_model is not None:
+        print(f"     CNN output Var[y_clean] = {cnn_clean_var:.6f}")
+
+    # 2. Measure noisy conditions
+    print(f"\n  {'Noise':>8s} {'SNR':>5s} │ {'SSM Var[y]':>12s} {'Amp.Ratio':>10s}"
+          f" │ {'NASG g':>8s} {'m_0':>6s} {'m_N-1':>6s} {'N_eff':>5s}"
+          f" │ {'||h||² per state':>30s}", end="")
+    if cnn_model is not None:
+        print(f" │ {'CNN Var[y]':>12s} {'CNN Amp.':>10s}", end="")
+    print()
+    print("  " + "─" * 130)
+
+    for noise_type in noise_types:
+        for snr_db in snr_dbs:
+            ssm_y_var = 0.0
+            ssm_h_var_sum = None
+            nasg_g_sum = 0.0
+            state_gate_sum = None
+            cnn_y_var = 0.0
+            n_samples = 0
+
+            for batch_idx, (mel, labels, audio) in enumerate(val_loader):
+                if batch_idx >= max_batches:
+                    break
+                audio = audio.to(device)
+
+                noise = generate_noise_signal(
+                    noise_type, audio.size(-1), sr=16000,
+                    dataset_audios=dataset_audios).to(device)
+                noisy_audio = mix_audio_at_snr(audio, noise, snr_db)
+
+                # SSM forward
+                _ = model(noisy_audio)
+                for block in _get_ssm_blocks(model):
+                    ssm_y_var += block._last_y_var.item()
+                    if hasattr(block, '_last_h_var'):
+                        h_var = block._last_h_var.cpu()
+                        if ssm_h_var_sum is None:
+                            ssm_h_var_sum = h_var
+                        else:
+                            ssm_h_var_sum = ssm_h_var_sum + h_var
+                    if hasattr(block, '_last_nasg_w'):
+                        nasg_g_sum += block._last_nasg_w.mean().item()
+                    if hasattr(block, '_last_state_gate'):
+                        sg = block._last_state_gate.mean(dim=0).cpu()
+                        if state_gate_sum is None:
+                            state_gate_sum = sg
+                        else:
+                            state_gate_sum = state_gate_sum + sg
+                n_samples += 1
+
+                # CNN forward
+                if cnn_model is not None and mel_fb is not None:
+                    noisy_mel = _compute_mel_batch(noisy_audio, 512, 160, mel_fb, device)
+                    _ = cnn_model(noisy_mel)
+                    cnn_y_var += _get_cnn_output_var(cnn_model)
+
+            denom = max(n_samples * n_blocks, 1)
+            ssm_y_var /= denom
+            ssm_amp = ssm_y_var / max(ssm_clean_var, 1e-12)
+            nasg_g = nasg_g_sum / denom
+
+            # State gate stats
+            if state_gate_sum is not None:
+                sg_avg = state_gate_sum / denom
+                m_0 = sg_avg[0].item()
+                m_last = sg_avg[-1].item()
+                n_eff = sg_avg.sum().item()
+                sg_str = f"{m_0:6.3f} {m_last:6.3f} {n_eff:5.1f}"
+            else:
+                sg_str = "   N/A    N/A   N/A"
+
+            # Per-state h variance
+            if ssm_h_var_sum is not None:
+                h_avg = ssm_h_var_sum / denom
+                h_str = " ".join(f"{v:.4f}" for v in h_avg[:8])
+            else:
+                h_str = "N/A"
+
+            line = (f"  {noise_type:>8s} {snr_db:>4d}dB │ {ssm_y_var:12.6f} {ssm_amp:10.2f}×"
+                    f" │ {nasg_g:8.4f} {sg_str}"
+                    f" │ {h_str}")
+
+            if cnn_model is not None:
+                cnn_y_var /= max(n_samples, 1)
+                cnn_amp = cnn_y_var / max(cnn_clean_var, 1e-12)
+                line += f" │ {cnn_y_var:12.6f} {cnn_amp:10.2f}×"
+
+            print(line, flush=True)
+
+    # 3. Theoretical prediction check
+    print("\n  📐 Theory check (O(σ²) verification):")
+    print("     If NC-SSM achieves O(σ²): Amp.Ratio should scale ∝ noise_power")
+    print("     -15dB→-5dB (10dB diff): ratio should decrease by ~10× (10 dB)")
+    print("     If Amp.Ratio >> 10×: residual selectivity causing O(σ⁶) leakage")
+    print("     NASG g ≈ 0.001 at -15dB → good (pure LTI)")
+    print("     NASG g > 0.05 at -15dB → bad (selectivity leaking noise)")
+    print("=" * 80 + "\n")
+
+
+def _get_ssm_blocks(model):
+    """Extract SSM (sa_ssm) submodules from NanoMambaBlock for diagnostic access.
+
+    NanoMamba architecture: model.blocks[i] = NanoMambaBlock, which contains
+    NanoMambaBlock.sa_ssm = SpectralAwareSSM / NoiseCondSMSSM / etc.
+    The SSM submodule caches _last_y_var, _last_h_var, _last_nasg_w, _last_state_gate.
+    """
+    blocks = []
+    if hasattr(model, 'blocks'):
+        for block in model.blocks:
+            # NanoMambaBlock.sa_ssm is the actual SSM
+            if hasattr(block, 'sa_ssm'):
+                ssm = block.sa_ssm
+                if hasattr(ssm, '_last_y_var'):
+                    blocks.append(ssm)
+            # Fallback: block is the SSM itself
+            elif hasattr(block, '_last_y_var'):
+                blocks.append(block)
+    return blocks
+
+
+def _get_cnn_output_var(cnn_model):
+    """Get output variance from CNN model's last layer output.
+
+    CNN models don't cache internal states, so we hook into the classifier.
+    Returns variance of the final feature map before classification.
+    """
+    # Most CNN models have a final feature extraction that we can approximate
+    # For now, return 0 — to be populated when CNN model architecture is confirmed
+    if hasattr(cnn_model, '_last_feature_var'):
+        return cnn_model._last_feature_var
+    return 0.0
+
+
 @torch.no_grad()
 def evaluate_reverb(model, val_loader, device, rt60=0.5,
                     noise_type=None, snr_db=None, dataset_audios=None,
@@ -3048,6 +3250,20 @@ def train_model(model, model_name, train_dataset, val_dataset,
               f"Train: {train_acc:.1f}% | "
               f"Val: {val_acc:.1f}% | "
               f"Time: {elapsed:.1f}s{marker}", flush=True)
+
+        # ★ Periodic noise propagation diagnostic (every 5 epochs during noise-aug)
+        # Checks that NASG, state masking, and O(σ²) bound work as intended.
+        if (not is_cnn and noise_aug and
+                (epoch + 1) % 5 == 0 and epoch >= 3):
+            try:
+                diagnose_noise_propagation(
+                    model, val_loader, device,
+                    dataset_audios=dataset_audios,
+                    noise_types=('white', 'factory'),
+                    snr_dbs=(-15, -5, 5),
+                    max_batches=3)
+            except Exception as e:
+                print(f"    ⚠ Noise diagnostic failed: {e}", flush=True)
 
         if val_acc > best_acc:
             best_acc = val_acc
