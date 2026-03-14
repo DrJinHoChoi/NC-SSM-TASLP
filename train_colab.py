@@ -3535,6 +3535,11 @@ def main():
     snr_levels = [int(s.strip()) for s in args.snr_range.split(',')]
     snr_levels.append('clean')
 
+    # Collect audio samples for babble noise generation during eval
+    dataset_audios = None
+    if hasattr(train_dataset, '_cache_audio'):
+        dataset_audios = train_dataset._cache_audio[:500]
+
     # Load GTCRN enhancer if requested
     gtcrn_model = None
     if args.use_enhancer and args.enhancer_type == 'gtcrn':
@@ -3548,6 +3553,7 @@ def main():
     noise_results = run_noise_evaluation(
         trained_models, val_loader, device,
         noise_types=noise_types, snr_levels=snr_levels,
+        dataset_audios=dataset_audios,
         use_enhancer=args.use_enhancer,
         enhancer_type=args.enhancer_type,
         gtcrn_model=gtcrn_model,
@@ -3564,6 +3570,7 @@ def main():
         calibrated_results = run_calibrated_evaluation(
             trained_models, val_loader, device,
             noise_types=noise_types, snr_levels=snr_levels,
+            dataset_audios=dataset_audios,
             use_enhancer=args.use_enhancer,
             enhancer_type=args.enhancer_type,
             gtcrn_model=gtcrn_model,
@@ -3584,6 +3591,7 @@ def main():
             rt60_list=rt60_list,
             noise_types_reverb=[t for t in noise_types if t in ['factory', 'babble']],
             snr_levels_reverb=[0, 5],
+            dataset_audios=dataset_audios,
             use_enhancer=args.use_enhancer,
             enhancer_type=args.enhancer_type,
             gtcrn_model=gtcrn_model)
