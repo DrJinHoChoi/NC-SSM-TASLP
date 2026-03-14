@@ -1099,6 +1099,20 @@ At low SNR, $g \to 0$: selective components vanish, yielding pure LTI mode with 
 At high SNR, $g \to 1$: full selectivity is preserved.
 The effective selectivity $\sigma \cdot g$ at $-15$\,dB reduces to $\approx 0.001$, suppressing cross-term noise by $\sim$2{,}500$\times$ compared to the $\sigma$-gate alone---with only 2 additional parameters per block.
 
+\smallskip\noindent\textbf{Adaptive State Dimensionality Reduction.}
+While NASG suppresses the \emph{selective} component, the fixed parameters $\Delta_{\text{base}}$, $\mathbf{B}_{\text{base}}$ still drive the state update in LTI mode.
+At $-15$\,dB, noise accumulates across all $N$ state dimensions, with higher-indexed states (longer effective memory via $|\bar{A}_n| \to 1$) accumulating proportionally more noise.
+We introduce \emph{input-gated state masking}: a learnable per-state gate $\mathbf{m} \in \mathbb{R}^N$ that scales the state \emph{input}:
+\begin{equation}
+\mathbf{h}_t = \bar{\mathbf{A}}_t\,\mathbf{h}_{t-1} + \mathbf{m} \odot \bar{\mathbf{B}}_t\,x_t,
+\label{eq:state_mask}
+\end{equation}
+where $m_n = \sigma(\gamma \cdot \overline{\text{SNR}} + \beta_0 - p_n)$ with linearly increasing penalty $p_n = 2n/(N{-}1)$ ($\gamma{=}8$, $\beta_0{=}{-}2$; 2 additional parameters per block).
+At $-15$\,dB white noise, $m_0 \approx 0.15$ and $m_7 \approx 0.02$, yielding an effective state dimension $N_{\text{eff}} \approx 4\text{--}5$ (from 8).
+
+Crucially, the mask is applied to the state \emph{input} rather than the output readout ($y_t = (\mathbf{m} \odot \mathbf{C})\,\mathbf{h}_t$).
+Output-gating allows noise to accumulate freely across $T$ frames before discarding 97\% of the corrupted state; input-gating prevents noise \emph{entry}, keeping $\|\mathbf{h}_{t,n}\| \approx 0$ for masked states.
+
 \subsection{Selectivity Gate Behavior}
 
 NC-SSM's per-sub-band selectivity gate $\bm{\sigma}$ learns frequency-aware modulation: under factory noise, low-frequency sub-bands reduce selectivity ($\sigma \to 0$, LTI mode) while high-frequency speech-dominant bands retain full selectivity ($\sigma \to 1$).

@@ -1406,6 +1406,7 @@ def evaluate_noisy(model, val_loader, device, noise_type='factory',
                    use_enhancer=False, enhancer_type='spectral',
                    gtcrn_model=None, enhancer_bypass=False,
                    bypass_threshold=-2.0, bypass_scale=3.0,
+                   sf_range=2.0,
                    ss_version='v2', bypass_version='v2',
                    is_cnn=False, mel_fb=None):
     """Evaluate under noisy conditions with optional front-end enhancer.
@@ -1457,7 +1458,8 @@ def evaluate_noisy(model, val_loader, device, noise_type='factory',
                     noisy_audio = noise_aware_bypass(
                         original, enhanced,
                         bypass_threshold=bypass_threshold,
-                        bypass_scale=bypass_scale)
+                        bypass_scale=bypass_scale,
+                        sf_range=sf_range)
                 else:
                     # [v1] Fixed-threshold bypass (original)
                     snr_est = estimate_snr_simple(original)  # (B, 1)
@@ -1556,7 +1558,7 @@ def run_noise_evaluation(models_dict, val_loader, device,
                          dataset_audios=None, use_enhancer=False,
                          enhancer_type='spectral', gtcrn_model=None,
                          enhancer_bypass=False, bypass_threshold=-2.0,
-                         bypass_scale=3.0,
+                         bypass_scale=3.0, sf_range=2.0,
                          ss_version='v2', bypass_version='v2'):
     if noise_types is None:
         noise_types = ['factory', 'white', 'babble', 'street', 'pink']
@@ -1618,6 +1620,7 @@ def run_noise_evaluation(models_dict, val_loader, device,
                         enhancer_bypass=enhancer_bypass,
                         bypass_threshold=bypass_threshold,
                         bypass_scale=bypass_scale,
+                        sf_range=sf_range,
                         ss_version=ss_version,
                         bypass_version=bypass_version,
                         is_cnn=is_cnn,
@@ -2414,6 +2417,7 @@ def run_calibrated_evaluation(models_dict, val_loader, device,
                               use_enhancer=False, enhancer_type='spectral',
                               gtcrn_model=None, enhancer_bypass=False,
                               bypass_threshold=-2.0, bypass_scale=3.0,
+                              sf_range=2.0,
                               ss_version='v2', bypass_version='v2',
                               use_continuous_calibration=False):
     """Evaluate with Runtime Parameter Calibration.
@@ -2482,6 +2486,7 @@ def run_calibrated_evaluation(models_dict, val_loader, device,
                         enhancer_bypass=enhancer_bypass,
                         bypass_threshold=bypass_threshold,
                         bypass_scale=bypass_scale,
+                        sf_range=sf_range,
                         ss_version=ss_version,
                         bypass_version=bypass_version,
                         is_cnn=is_cnn, mel_fb=mel_fb)
@@ -3333,6 +3338,7 @@ def main():
         enhancer_bypass=args.enhancer_bypass,
         bypass_threshold=args.bypass_threshold,
         bypass_scale=args.bypass_scale,
+        sf_range=args.sf_range,
         ss_version=args.ss_version,
         bypass_version=args.bypass_version)
 
@@ -3348,6 +3354,7 @@ def main():
             enhancer_bypass=args.enhancer_bypass,
             bypass_threshold=args.bypass_threshold,
             bypass_scale=args.bypass_scale,
+            sf_range=args.sf_range,
             ss_version=args.ss_version,
             bypass_version=args.bypass_version,
             use_continuous_calibration=getattr(args, 'calibrate_continuous', False))
