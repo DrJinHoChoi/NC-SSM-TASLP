@@ -26,6 +26,10 @@
 \definecolor{cnncolor}{RGB}{234,67,53}
 \definecolor{sharedcolor}{RGB}{52,168,83}
 \definecolor{newcolor}{RGB}{251,188,4}
+% Plot colors: 3-model distinct palette for Figure 2
+\definecolor{plotcnn}{RGB}{220,60,47}
+\definecolor{plotssm}{RGB}{40,100,195}
+\definecolor{plotlarge}{RGB}{0,153,136}
 
 \title{NC-SSM: Noise-Conditioned State Space Models for Robust and Efficient Keyword Spotting}
 
@@ -908,7 +912,7 @@ Table~\ref{tab:noise_main} reports accuracy under five noise types at all SNR le
     grid=both,
     grid style={line width=.1pt, draw=gray!15},
     major grid style={line width=.2pt, draw=gray!30},
-    every axis plot/.append style={semithick, mark size=1.2pt},
+    every axis plot/.append style={thick, mark size=1.5pt},
     tick label style={font=\tiny},
     label style={font=\tiny},
     title style={font=\scriptsize\bfseries},
@@ -918,44 +922,49 @@ Table~\ref{tab:noise_main} reports accuracy under five noise types at all SNR le
 % Row 1: Factory, White, Babble
 \begin{axis}[noise plot, name=p1,
     title={Factory}, ylabel={Accuracy (\%)}, xlabel={}]
-\addplot[color=red!70!black, mark=square*]
+\addplot[color=plotcnn, mark=square*]
     coordinates {(-15,64.5)(-10,74.8)(-5,83.5)(0,89.0)(5,91.9)(10,92.9)(15,93.9)};
-\addplot[color=blue!80!black, mark=*]
+\addplot[color=plotssm, mark=*]
     coordinates {(-15,61.4)(-10,69.2)(-5,77.8)(0,86.8)(5,90.1)(10,92.4)(15,92.9)};
-\addplot[color=blue!80!black, densely dashed, mark=diamond*]
+\addplot[color=plotlarge, densely dashed, mark=diamond*, mark options={solid}]
     coordinates {(-15,61.3)(-10,68.6)(-5,79.1)(0,87.0)(5,91.0)(10,93.1)(15,93.4)};
 \end{axis}
 
 \begin{axis}[noise plot, name=p2, at={(p1.east)}, anchor=west, xshift=0.15cm,
     title={White}, ylabel={}, xlabel={}]
-\addplot[color=red!70!black, mark=square*]
+\addplot[color=plotcnn, mark=square*]
     coordinates {(-15,58.6)(-10,64.6)(-5,76.7)(0,85.9)(5,90.2)(10,92.6)(15,93.8)};
-\addplot[color=blue!80!black, mark=*]
+\addplot[color=plotssm, mark=*]
     coordinates {(-15,50.8)(-10,63.0)(-5,75.5)(0,85.2)(5,90.0)(10,92.5)(15,93.5)};
-\addplot[color=blue!80!black, densely dashed, mark=diamond*]
+\addplot[color=plotlarge, densely dashed, mark=diamond*, mark options={solid}]
     coordinates {(-15,34.1)(-10,59.8)(-5,76.5)(0,86.4)(5,91.0)(10,93.4)(15,94.4)};
+% Gap annotation at -15 dB: BC-ResNet-1 (58.6) vs NC-SSM-L (34.1)
+\draw[<->, gray!60!black, line width=0.7pt]
+    (axis cs:-16,35.5) -- (axis cs:-16,57.2);
+\node[left, font=\tiny, text=gray!50!black, align=right]
+    at (axis cs:-16.5,46) {24.5\,\%p};
 \end{axis}
 
 \begin{axis}[noise plot, name=p3, at={(p2.east)}, anchor=west, xshift=0.15cm,
     title={Babble}, ylabel={}, xlabel={}]
-\addplot[color=red!70!black, mark=square*]
+\addplot[color=plotcnn, mark=square*]
     coordinates {(-15,76.7)(-10,84.3)(-5,88.8)(0,92.1)(5,93.8)(10,94.4)(15,95.0)};
-\addplot[color=blue!80!black, mark=*]
+\addplot[color=plotssm, mark=*]
     coordinates {(-15,73.4)(-10,79.1)(-5,84.1)(0,89.9)(5,92.4)(10,94.0)(15,94.8)};
-\addplot[color=blue!80!black, densely dashed, mark=diamond*]
+\addplot[color=plotlarge, densely dashed, mark=diamond*, mark options={solid}]
     coordinates {(-15,74.0)(-10,80.2)(-5,86.8)(0,91.3)(5,93.3)(10,94.4)(15,95.1)};
 \end{axis}
 
 % Row 2: Street, Pink (centered)
 \begin{axis}[noise plot, name=p4,
     at={($(p1.south west)!0.5!(p2.south west)$)}, anchor=north west,
-    yshift=-0.6cm,
+    yshift=-1.0cm,
     title={Street}, ylabel={Accuracy (\%)}, xlabel={SNR (dB)}]
-\addplot[color=red!70!black, mark=square*]
+\addplot[color=plotcnn, mark=square*]
     coordinates {(-15,60.7)(-10,65.1)(-5,77.7)(0,84.8)(5,90.1)(10,93.0)(15,94.1)};
-\addplot[color=blue!80!black, mark=*]
+\addplot[color=plotssm, mark=*]
     coordinates {(-15,60.2)(-10,64.3)(-5,75.2)(0,82.2)(5,88.9)(10,92.2)(15,93.7)};
-\addplot[color=blue!80!black, densely dashed, mark=diamond*]
+\addplot[color=plotlarge, densely dashed, mark=diamond*, mark options={solid}]
     coordinates {(-15,57.8)(-10,63.5)(-5,75.7)(0,83.4)(5,90.1)(10,92.8)(15,94.5)};
 \end{axis}
 
@@ -964,19 +973,19 @@ Table~\ref{tab:noise_main} reports accuracy under five noise types at all SNR le
     legend to name=shared_legend,
     legend style={font=\scriptsize, legend columns=-1, column sep=8pt,
       draw=none}]
-\addplot[color=red!70!black, mark=square*]
+\addplot[color=plotcnn, mark=square*]
     coordinates {(-15,58.9)(-10,66.0)(-5,79.7)(0,88.4)(5,91.8)(10,93.8)(15,94.5)};
 \addlegendentry{BC-ResNet-1 (7.5K\,/\,4.70M)}
-\addplot[color=blue!80!black, mark=*]
+\addplot[color=plotssm, mark=*]
     coordinates {(-15,55.2)(-10,62.9)(-5,76.7)(0,86.6)(5,91.5)(10,93.0)(15,94.4)};
 \addlegendentry{NC-SSM (7.4K\,/\,0.85M)}
-\addplot[color=blue!80!black, densely dashed, mark=diamond*]
+\addplot[color=plotlarge, densely dashed, mark=diamond*, mark options={solid}]
     coordinates {(-15,55.4)(-10,62.2)(-5,76.4)(0,87.2)(5,91.9)(10,93.8)(15,94.7)};
 \addlegendentry{NC-SSM-L (10.2K\,/\,1.15M)}
 \end{axis}
 
-% Shared legend centered below all plots
-\node[anchor=north] at ($(p4.south)!0.5!(p5.south) + (0,-0.3cm)$)
+% Shared legend centered below all plots (below xlabel text)
+\node[anchor=north] at ($(p4.south)!0.5!(p5.south) + (0,-0.9cm)$)
   {\ref{shared_legend}};
 
 \end{tikzpicture}
