@@ -445,6 +445,8 @@ def train_one_epoch(model, train_loader, optimizer, scheduler, device,
     total_loss = 0
     correct = 0
     total = 0
+    sf_loss_sum = 0.0
+    sf_loss_count = 0
 
     # ================================================================
     # Noise Configuration: Per-sample diversity with curriculum
@@ -677,6 +679,8 @@ def train_one_epoch(model, train_loader, optimizer, scheduler, device,
             sf_pred = model._sf_snr_est.squeeze(-1)  # (B,)
             sf_bridge_loss = F.mse_loss(sf_pred, sf_target)
             loss = loss + 0.5 * sf_bridge_loss
+            sf_loss_sum += sf_bridge_loss.item()
+            sf_loss_count += 1
 
         optimizer.zero_grad()
         loss.backward()
@@ -721,7 +725,8 @@ def train_one_epoch(model, train_loader, optimizer, scheduler, device,
                   f"Loss: {total_loss/total:.4f} Acc: {acc:.1f}%{aug_str}",
                   flush=True)
 
-    return total_loss / total, 100. * correct / total
+    sf_loss_avg = sf_loss_sum / max(sf_loss_count, 1)
+    return total_loss / total, 100. * correct / total, sf_loss_avg
 
 
 def _compute_mel_batch(audio, n_fft, hop_length, mel_fb, device):
@@ -3240,7 +3245,7 @@ def train_model(model, model_name, train_dataset, val_dataset,
             else:
                 _adjust_bn_momentum(model, 0.05)  # Slower during noise-aug
 
-        train_loss, train_acc = train_one_epoch(
+        train_loss, train_acc, sf_loss_avg = train_one_epoch(
             model, train_loader, optimizer, scheduler, device,
             epoch=epoch, model_name=model_name,
             noise_aug=noise_aug, noise_ratio=noise_ratio,
@@ -3273,6 +3278,19 @@ def train_model(model, model_name, train_dataset, val_dataset,
               f"Train: {train_acc:.1f}% | "
               f"Val: {val_acc:.1f}% | "
               f"Time: {elapsed:.1f}s{marker}", flush=True)
+
+        # NASG Training Monitor: SF bridge + gate response per epoch
+        if not is_cnn and hasattr(model, 'sf_to_snr_scale'):
+            import math as _m
+            _sc = model.sf_to_snr_scale.item()
+            _bi = model.sf_to_snr_bias.item()
+            _ns = model.blocks[0].sa_ssm.nasg_scale.item()
+            _nb = model.blocks[0].sa_ssm.nasg_bias.item()
+            _hints = [('Clean', 0.987), ('-5dB', _m.tanh(-5/10)), ('-15dB', _m.tanh(-15/10))]
+            _gs = " ".join(f"{l}:{1/(1+_m.exp(-(_ns*(h+_nb)))):.3f}" for l, h in _hints)
+            print(f"    📊 SF(scale={_sc:.2f},bias={_bi:.2f}) "
+                  f"SF-loss={sf_loss_avg:.4f} "
+                  f"NASG-g[{_gs}]", flush=True)
 
         # ★ Periodic noise propagation diagnostic (every 5 epochs during noise-aug)
         # Checks that NASG, state masking, and O(σ²) bound work as intended.
