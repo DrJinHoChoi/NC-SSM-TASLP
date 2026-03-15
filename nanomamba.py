@@ -1688,7 +1688,9 @@ class NoiseCondSMSSM(SelectivityModulatedSSM):
                 nasg_input = snr_hint  # (B, L, 1) calibrated [-1,1]
             else:
                 nasg_input = snr_mel.mean(dim=-1, keepdim=True)  # fallback
-            nasg_w = torch.sigmoid(self.nasg_scale * nasg_input + self.nasg_bias)
+            nasg_scale_c = self.nasg_scale.clamp(2.0, 10.0)
+            nasg_bias_c = self.nasg_bias.clamp(-2.0, 2.0)
+            nasg_w = torch.sigmoid(nasg_scale_c * nasg_input + nasg_bias_c)
             x_for_proj = nasg_w * x
             # Cache for analysis
             self._last_nasg_w = nasg_w.detach()
@@ -1857,9 +1859,11 @@ class NoiseCondSMSSM(SelectivityModulatedSSM):
                 state_snr_input = snr_smooth_bc.mean(dim=1)  # (B, N) fallback
             state_idx_penalty = torch.linspace(
                 0, -2.0, N, device=x.device)  # higher states penalized more
+            sm_scale_c = self.state_mask_scale.clamp(1.0, 8.0)
+            sm_bias_c = self.state_mask_bias.clamp(-2.0, 2.0)
             state_gate = torch.sigmoid(
-                self.state_mask_scale * state_snr_input
-                + self.state_mask_bias + state_idx_penalty)  # (B, N)
+                sm_scale_c * state_snr_input
+                + sm_bias_c + state_idx_penalty)  # (B, N)
             self._last_state_gate = state_gate.detach()
         else:
             state_gate = None
