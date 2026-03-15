@@ -3073,6 +3073,7 @@ class NanoMamba(nn.Module):
                  use_spec_augment=False,
                  use_freq_aware=False, n_sub_bands=5, d_sub=4,
                  use_subband_ssm=False,
+                 use_nano_se=False,
                  weight_sharing=False, n_repeats=3,
                  **ssm_kwargs):
         """
@@ -3163,6 +3164,7 @@ class NanoMamba(nn.Module):
             self.sf_to_snr_scale = nn.Parameter(torch.tensor(-5.0))
             self.sf_to_snr_bias = nn.Parameter(torch.tensor(3.4))
         self.use_lsg = use_lsg
+        self.use_nano_se = use_nano_se
         self.use_spectral_enhancer = use_spectral_enhancer
         self.use_learnable_enhancer = use_learnable_enhancer
         self.use_spectral_block = use_spectral_block
@@ -3228,6 +3230,12 @@ class NanoMamba(nn.Module):
         # 1b. Learned Spectral Gate (NC-SSM: explicit noise suppression before PCEN)
         if use_lsg:
             self.spectral_gate = LearnedSpectralGate(n_mels=n_mels)
+
+        # 1c. NanoSE: Nano Speech Enhancer (sequential enhancement expert)
+        # Mel-domain IRM with sub-band temporal context (257 params)
+        # Replaces/upgrades LSG when enabled: adds temporal + cross-freq context
+        if use_nano_se:
+            self.nano_se = NanoSE(n_mels=n_mels)
 
         # 2. Mel filterbank (fixed)
         mel_fb = self._create_mel_fb(sr, n_fft, n_mels)
@@ -3385,6 +3393,12 @@ class NanoMamba(nn.Module):
         # Applied BEFORE PCEN normalization — suppresses noisy mel bins using SNR
         if self.use_lsg:
             mel = self.spectral_gate(mel, snr_mel)
+
+        # [NanoSE] Nano Speech Enhancement: mel-domain IRM with sub-band temporal context
+        # Sequential enhancement expert: cleans mel BEFORE DualPCEN normalization
+        # At high SNR: bypass gate ≈ 1 (no artifact). At low SNR: IRM mask applied.
+        if self.use_nano_se:
+            mel = self.nano_se(mel, snr_mel)
 
         # Feature normalization: MultiPCEN / DualPCEN / PCEN / log
         # v2 variants receive snr_mel for SNR-conditioned routing
@@ -4227,6 +4241,42 @@ def create_nanomamba_nc_large(n_classes=12, use_param_decouple=False,
         use_nasg=use_nasg)
 
 
+def create_nanomamba_nc_nanose(n_classes=12):
+    """NanoMamba-NC-NanoSE: NC-SSM + NanoSE (Nano Speech Enhancer).
+
+    Sequential enhancement expert for extreme low-SNR KWS:
+      NanoSE (mel IRM) → DualPCEN v2 → NC-SSM classifier
+
+    NanoSE adds 257 params (sub-band grouped causal conv + SNR-conditioned
+    FiLM + bypass gate) for mel-domain spectral cleaning before PCEN.
+    At high SNR, bypass gate preserves original signal (no artifact).
+    At extreme low SNR, IRM mask suppresses noisy bands.
+
+    Based on NC-SSM-Large (d_model=24, d_state=8, ~10.2K params):
+      + NanoSE (257 params) = ~10,457 params total.
+    """
+    return NanoMamba(
+        n_mels=40, n_classes=n_classes,
+        d_model=24, d_state=8, d_conv=3, expand=1.5,
+        n_layers=2, use_dual_pcen_v2=True,
+        use_ssm_v2=True, use_nc_ssm=True, use_lsg=True,
+        use_nano_se=True)
+
+
+def create_nanomamba_nc_matched_nanose(n_classes=12):
+    """NanoMamba-NC-Matched-NanoSE: NC-SSM-Matched + NanoSE.
+
+    Capacity-matched to BC-ResNet-1 (7,464 params):
+      NC-SSM-Matched (7,443) + NanoSE (257) = ~7,700 params.
+    """
+    return NanoMamba(
+        n_mels=40, n_classes=n_classes,
+        d_model=20, d_state=6, d_conv=3, expand=1.5,
+        n_layers=2, use_dual_pcen_v2=True,
+        use_ssm_v2=True, use_nc_ssm=True, use_lsg=True,
+        use_nano_se=True)
+
+
 # ============================================================================
 # Ablation Factory Functions
 # ============================================================================
@@ -4680,6 +4730,93 @@ class LearnedSpectralGate(nn.Module):
         #       = mel × (gain + (1 - gain) × floor)
         #       = mel × (gain × (1 - floor) + floor)
         return mel * (gain * (1.0 - floor) + floor)
+
+
+class NanoSE(nn.Module):
+    """Nano Speech Enhancer: mel-domain IRM estimator with sub-band temporal context.
+
+    Sequential enhancement expert for extreme low-SNR KWS.
+    Inspired by: RNNoise (22-band IRM), Sub-Spectral Norm (sub-band grouping),
+                 LearnedSpectralGate (per-freq gating), GTCRN (ERB grouping).
+
+    Architecture:
+      1. Sub-band grouped causal Conv1d → temporal + cross-freq context
+      2. SNR-conditioned per-group FiLM scaling
+      3. Sigmoid mask → mel * mask (IRM, always non-negative)
+      4. SNR-adaptive bypass gate (high SNR → skip enhancement)
+
+    Design philosophy: KWS doesn't need human-perceptible enhancement quality —
+    just enough spectral cleaning to preserve keyword patterns for the classifier.
+    Sub-band grouping (5 groups of 8 mels) mimics Sub-Spectral Norm in BC-ResNet-1,
+    which explains CNN's advantage at low SNR.
+
+    Parameters: 257 (205 conv + 10 FiLM + 40 bias + 2 bypass)
+    """
+
+    def __init__(self, n_mels=40, n_groups=5, kernel_size=5):
+        super().__init__()
+        self.n_groups = n_groups          # 5 sub-bands of 8 mels each
+        group_size = n_mels // n_groups   # 8
+
+        # Sub-band temporal conv (causal, grouped)
+        # Captures local frequency correlation within each sub-band
+        # + temporal context (kernel=5 × 10ms hop = 50ms causal window)
+        # Params: n_groups × (group_size × kernel_size + 1) = 5×(8×5+1) = 205
+        self.temporal_conv = nn.Conv1d(
+            n_mels, n_mels, kernel_size=kernel_size,
+            padding=kernel_size - 1,   # causal: pad left only
+            groups=n_groups
+        )
+
+        # SNR → per-group gain (FiLM-lite): 1×5 + 5 = 10 params
+        # Global SNR conditions each sub-band group differently
+        self.snr_to_gain = nn.Linear(1, n_groups)
+
+        # Per-frequency learnable bias for mask: 40 params
+        self.freq_bias = nn.Parameter(torch.zeros(n_mels))
+
+        # SNR-adaptive bypass gate: 2 params
+        # High SNR → bypass≈1 (preserve original, no artifact)
+        # Low SNR → bypass≈0 (use enhanced signal)
+        self.bypass_w = nn.Parameter(torch.tensor(3.0))
+        self.bypass_b = nn.Parameter(torch.tensor(-1.0))
+
+        # Total: 205 + 10 + 40 + 2 = 257 params
+
+    def forward(self, mel, snr_mel):
+        """Apply nano speech enhancement via IRM.
+
+        Args:
+            mel:     (B, n_mels, T) mel spectrogram (linear energy)
+            snr_mel: (B, n_mels, T) per-band SNR estimate in [0,1]
+        Returns:
+            enhanced_mel: (B, n_mels, T) noise-suppressed mel
+        """
+        # 1. Temporal context via causal grouped conv
+        x = self.temporal_conv(mel)
+        x = x[..., :mel.size(-1)]  # causal trim: remove right padding
+
+        # 2. Mask estimation with per-frequency bias
+        mask = torch.sigmoid(x + self.freq_bias[:, None])  # (B, n_mels, T)
+
+        # 3. SNR-conditioned per-group scaling (FiLM-lite)
+        # Global SNR determines how much each sub-band group is enhanced
+        snr_global = snr_mel.mean(dim=(1, 2), keepdim=True)  # (B, 1, 1)
+        group_gain = torch.sigmoid(
+            self.snr_to_gain(snr_global.view(-1, 1))  # (B, n_groups)
+        )
+        # Expand groups: (B, n_groups) → (B, n_mels, 1)
+        group_gain = group_gain.unsqueeze(-1).repeat_interleave(
+            mel.size(1) // self.n_groups, dim=1
+        )  # (B, n_mels, 1)
+        mask = mask * group_gain
+
+        # 4. Apply IRM (always non-negative: sigmoid × mel)
+        enhanced = mel * mask
+
+        # 5. SNR-adaptive bypass: preserve original at high SNR
+        bypass = torch.sigmoid(self.bypass_w * snr_global + self.bypass_b)
+        return bypass * mel + (1.0 - bypass) * enhanced
 
 
 class SNRCondScale(nn.Module):

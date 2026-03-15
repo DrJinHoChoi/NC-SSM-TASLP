@@ -111,6 +111,9 @@ try:
         # NC-SSM: Noise-Conditioned SM-SSM (per-sub-band selectivity + LSG)
         create_nanomamba_nc_matched,
         create_nanomamba_nc_large,
+        # NC-SSM + NanoSE: Sequential Enhancement Expert for extreme low-SNR
+        create_nanomamba_nc_nanose,
+        create_nanomamba_nc_matched_nanose,
     )
     print("  [OK] nanomamba.py loaded successfully")
 except ImportError:
@@ -396,7 +399,8 @@ def train_one_epoch(model, train_loader, optimizer, scheduler, device,
                     n_fft=512, hop_length=160, n_mels=40,
                     total_epochs=30, noise_curriculum_v2=False,
                     ss_train=False,
-                    ema=None, low_snr_boost=False):
+                    ema=None, low_snr_boost=False,
+                    hard_epochs=0):
     """Train one epoch with Per-Sample Multi-Condition Noise Augmentation.
 
     [KEY INSIGHT] Why noise-aug helps NanoMamba MORE than CNN:
@@ -456,7 +460,11 @@ def train_one_epoch(model, train_loader, optimizer, scheduler, device,
     # Phase-based curriculum
     WARM_UP_EPOCHS = 3   # Clean-only warm-up
     GENTLE_END = 10      # Easy noise phase
-    MODERATE_END = 15 if low_snr_boost else 20    # Moderate noise phase (earlier hard if boosted)
+    if hard_epochs > 0:
+        # Custom HARD duration: start HARD at (total_epochs - hard_epochs)
+        MODERATE_END = max(GENTLE_END + 1, total_epochs - hard_epochs)
+    else:
+        MODERATE_END = 15 if low_snr_boost else 20    # Default: earlier hard if boosted
 
     if epoch < WARM_UP_EPOCHS:
         # Phase 0: Clean-only warm-up — stabilize Expert1 / CNN baseline
@@ -1805,7 +1813,7 @@ def run_noise_evaluation(models_dict, val_loader, device,
     if noise_types is None:
         noise_types = ['factory', 'white', 'babble', 'street', 'pink']
     if snr_levels is None:
-        snr_levels = [-15, -10, -5, 0, 5, 10, 15, 'clean']
+        snr_levels = [-25, -20, -15, -10, -5, 0, 5, 10, 15, 'clean']
 
     enhancer_names = {'spectral': 'SPECTRAL SUBTRACTION (0 params)',
                       'gtcrn': 'GTCRN PRE-TRAINED (23.7K params)'}
@@ -2670,7 +2678,7 @@ def run_calibrated_evaluation(models_dict, val_loader, device,
     if noise_types is None:
         noise_types = ['factory', 'white', 'babble', 'street', 'pink']
     if snr_levels is None:
-        snr_levels = [-15, -10, -5, 0, 5, 10, 15, 'clean']
+        snr_levels = [-25, -20, -15, -10, -5, 0, 5, 10, 15, 'clean']
 
     cal_mode = "CONTINUOUS" if use_continuous_calibration else "DISCRETE"
     print("\n" + "=" * 80)
@@ -3092,6 +3100,9 @@ MODEL_REGISTRY = {
     'NanoMamba-NC-Large': create_nanomamba_nc_large,
     'NanoMamba-NC-Large-PD': lambda n=12: create_nanomamba_nc_large(n, use_param_decouple=True),
     'NanoMamba-NC-Large-NASG': lambda n=12: create_nanomamba_nc_large(n, use_nasg=True),
+    # NC-SSM + NanoSE: Sequential Enhancement Expert for extreme low-SNR KWS
+    'NanoMamba-NC-NanoSE': create_nanomamba_nc_nanose,
+    'NanoMamba-NC-Matched-NanoSE': create_nanomamba_nc_matched_nanose,
     'DS-CNN-S': lambda n=12: DSCNN_S(n_classes=n),
     'BC-ResNet-1': lambda n=12: BCResNet(n_classes=n, scale=1),
 }
@@ -3156,7 +3167,8 @@ def train_model(model, model_name, train_dataset, val_dataset,
                 checkpoint_dir, device, epochs=30, batch_size=128, lr=3e-3,
                 noise_aug=False, noise_ratio=0.5, noise_curriculum_v2=False,
                 ss_train=False,
-                use_ema=False, ema_decay=0.999, low_snr_boost=False):
+                use_ema=False, ema_decay=0.999, low_snr_boost=False,
+                hard_epochs=0):
     """Full training loop with Per-Sample Multi-Condition Noise Augmentation.
 
     [NOVEL] Per-Sample Multi-Condition Training reveals structural differences:
@@ -3266,7 +3278,8 @@ def train_model(model, model_name, train_dataset, val_dataset,
             noise_curriculum_v2=noise_curriculum_v2,
             ss_train=ss_train,
             ema=ema,
-            low_snr_boost=low_snr_boost)
+            low_snr_boost=low_snr_boost,
+            hard_epochs=hard_epochs)
 
         # Evaluate on CLEAN val set (always clean, fair comparison)
         # Use EMA weights for evaluation if enabled
@@ -3458,6 +3471,11 @@ def main():
                         help='Boost low-SNR training: start hard phase earlier (epoch 15) '
                              'and use more aggressive SNR range (-15~5dB) in hard phase. '
                              'Use with --noise_curriculum_v2.')
+    parser.add_argument('--hard_epochs', type=int, default=0,
+                        help='Number of epochs for HARD phase. 0 = use default '
+                             '(10 epochs or 15 with --low_snr_boost). '
+                             'With NanoSE, 5 may suffice since enhancement handles '
+                             'extreme noise.')
     parser.add_argument('--ss_train', action='store_true',
                         help='Apply Spectral Subtraction (SS v2) to noisy audio '
                              'DURING training. Model learns to exploit SS-enhanced '
@@ -3557,7 +3575,8 @@ def main():
                 noise_curriculum_v2=args.noise_curriculum_v2,
                 ss_train=args.ss_train,
                 use_ema=args.use_ema, ema_decay=args.ema_decay,
-                low_snr_boost=getattr(args, 'low_snr_boost', False))
+                low_snr_boost=getattr(args, 'low_snr_boost', False),
+                hard_epochs=getattr(args, 'hard_epochs', 0))
 
         trained_models[model_name] = model
 
