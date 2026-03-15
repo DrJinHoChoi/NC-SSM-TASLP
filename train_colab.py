@@ -3293,10 +3293,12 @@ def train_model(model, model_name, train_dataset, val_dataset,
             _ns = model.blocks[0].sa_ssm.nasg_scale.item()
             _nb = model.blocks[0].sa_ssm.nasg_bias.item()
             _hints = [('Clean', 0.987), ('-5dB', _m.tanh(-5/10)), ('-15dB', _m.tanh(-15/10))]
-            _gs = " ".join(f"{l}:{1/(1+_m.exp(-(_ns*(h+_nb)))):.3f}" for l, h in _hints)
+            # Correct formula: sigmoid(nasg_scale * hint + nasg_bias)
+            _gs = " ".join(f"{l}:{1/(1+_m.exp(-(_ns*h+_nb))):.3f}" for l, h in _hints)
             print(f"    📊 SF(scale={_sc:.2f},bias={_bi:.2f}) "
+                  f"NASG(scale={_ns:.2f},bias={_nb:.2f}) "
                   f"SF-loss={sf_loss_avg:.4f} "
-                  f"NASG-g[{_gs}]", flush=True)
+                  f"g[{_gs}]", flush=True)
 
         # ★ Periodic noise propagation diagnostic (every 5 epochs during noise-aug)
         # Checks that NASG, state masking, and O(σ²) bound work as intended.
