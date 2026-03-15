@@ -1561,11 +1561,15 @@ def diagnose_noise_propagation(model, val_loader, device, dataset_audios=None,
     ssm_clean_var = 0.0
     cnn_clean_var = 0.0
     n_clean = 0
+    import math as _math
     for batch_idx, (mel, labels, audio) in enumerate(val_loader):
         if batch_idx >= max_batches:
             break
         audio = audio.to(device)
-        _ = model(audio)
+        # Oracle snr_hint for clean: tanh(25/10) ≈ 0.987
+        _B = audio.size(0)
+        _clean_hint = torch.full((_B,), _math.tanh(25.0 / 10.0), device=device)
+        _ = model(audio, snr_hint=_clean_hint)
         # Collect output variance from SSM blocks
         for block in _get_ssm_blocks(model):
             ssm_clean_var += block._last_y_var.item()
@@ -1613,8 +1617,10 @@ def diagnose_noise_propagation(model, val_loader, device, dataset_audios=None,
                     dataset_audios=dataset_audios).to(device)
                 noisy_audio = mix_audio_at_snr(audio, noise, snr_db)
 
-                # SSM forward
-                _ = model(noisy_audio)
+                # SSM forward with oracle snr_hint
+                _B = audio.size(0)
+                _snr_hint = torch.full((_B,), _math.tanh(snr_db / 10.0), device=device)
+                _ = model(noisy_audio, snr_hint=_snr_hint)
                 for block in _get_ssm_blocks(model):
                     ssm_y_var += block._last_y_var.item()
                     if hasattr(block, '_last_h_var'):
