@@ -447,6 +447,7 @@ def train_one_epoch(model, train_loader, optimizer, scheduler, device,
     total = 0
     sf_loss_sum = 0.0
     sf_loss_count = 0
+    snr_sampled_all = []  # Track all sampled SNR values
 
     # ================================================================
     # Noise Configuration: Per-sample diversity with curriculum
@@ -571,6 +572,7 @@ def train_one_epoch(model, train_loader, optimizer, scheduler, device,
 
                     noise_types_per_sample.append(noise_type_i)
                     snr_dbs_per_sample.append(snr_db_i)
+                    snr_sampled_all.append(snr_db_i)
 
                     # Generate noise for this sample
                     noise_i = generate_noise_signal(
@@ -726,7 +728,11 @@ def train_one_epoch(model, train_loader, optimizer, scheduler, device,
                   flush=True)
 
     sf_loss_avg = sf_loss_sum / max(sf_loss_count, 1)
-    return total_loss / total, 100. * correct / total, sf_loss_avg
+    snr_stats = None
+    if snr_sampled_all:
+        snr_arr = np.array(snr_sampled_all)
+        snr_stats = (snr_arr.min(), snr_arr.mean(), snr_arr.max(), len(snr_arr))
+    return total_loss / total, 100. * correct / total, sf_loss_avg, snr_stats
 
 
 def _compute_mel_batch(audio, n_fft, hop_length, mel_fb, device):
@@ -3251,7 +3257,7 @@ def train_model(model, model_name, train_dataset, val_dataset,
             else:
                 _adjust_bn_momentum(model, 0.05)  # Slower during noise-aug
 
-        train_loss, train_acc, sf_loss_avg = train_one_epoch(
+        train_loss, train_acc, sf_loss_avg, snr_stats = train_one_epoch(
             model, train_loader, optimizer, scheduler, device,
             epoch=epoch, model_name=model_name,
             noise_aug=noise_aug, noise_ratio=noise_ratio,
@@ -3295,10 +3301,14 @@ def train_model(model, model_name, train_dataset, val_dataset,
             _hints = [('Clean', 0.987), ('-5dB', _m.tanh(-5/10)), ('-15dB', _m.tanh(-15/10))]
             # Correct formula: sigmoid(nasg_scale * hint + nasg_bias)
             _gs = " ".join(f"{l}:{1/(1+_m.exp(-(_ns*h+_nb))):.3f}" for l, h in _hints)
+            _snr_str = ""
+            if snr_stats is not None:
+                _smin, _smean, _smax, _scnt = snr_stats
+                _snr_str = f" SNR({_smin:.0f}~{_smax:.0f}dB,avg={_smean:.1f},n={_scnt})"
             print(f"    📊 SF(scale={_sc:.2f},bias={_bi:.2f}) "
                   f"NASG(scale={_ns:.2f},bias={_nb:.2f}) "
                   f"SF-loss={sf_loss_avg:.4f} "
-                  f"g[{_gs}]", flush=True)
+                  f"g[{_gs}]{_snr_str}", flush=True)
 
         # ★ Periodic noise propagation diagnostic (every 5 epochs during noise-aug)
         # Checks that NASG, state masking, and O(σ²) bound work as intended.
