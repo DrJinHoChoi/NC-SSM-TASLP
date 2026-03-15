@@ -506,9 +506,9 @@ def train_one_epoch(model, train_loader, optimizer, scheduler, device,
         labels = labels.to(device)
         audio = audio.to(device)
         mel = mel.to(device)
+        B = audio.size(0)
 
         if effective_noise_aug and effective_ratio > 0:
-            B = audio.size(0)
             n_noisy = int(B * effective_ratio)
 
             if n_noisy > 0:
