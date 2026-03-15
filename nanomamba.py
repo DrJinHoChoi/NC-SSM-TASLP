@@ -3155,8 +3155,9 @@ class NanoMamba(nn.Module):
         # SNR Teacher-Student: SF→SNR fallback estimator for inference
         # When snr_hint=None (inference), estimate SNR from spectral flatness
         if self.use_nasg_model:
-            self.sf_to_snr_scale = nn.Parameter(torch.tensor(-2.0))  # SF high → low SNR
-            self.sf_to_snr_bias = nn.Parameter(torch.tensor(0.5))
+            # Fitted to: SF(clean≈0.15)→tanh(2.65)=0.990, SF(white≈0.95)→tanh(-1.35)=-0.876
+            self.sf_to_snr_scale = nn.Parameter(torch.tensor(-5.0))
+            self.sf_to_snr_bias = nn.Parameter(torch.tensor(3.4))
         self.use_lsg = use_lsg
         self.use_spectral_enhancer = use_spectral_enhancer
         self.use_learnable_enhancer = use_learnable_enhancer
@@ -3519,22 +3520,25 @@ class NanoMamba(nn.Module):
         # SNR Teacher-Student: prepare snr_hint for NASG
         # ================================================================
         snr_hint_expanded = None
+        self._sf_snr_est = None
         if self.use_nasg_model:
+            # Always compute SF estimation (for auxiliary loss training)
+            # mel.detach(): estimation noise does NOT propagate to feature extractor
+            mel_detached = mel.detach().clamp(min=1e-6)  # (B, n_mels, T)
+            log_mean = torch.log(mel_detached).mean(dim=1)  # (B, T)
+            arith_mean = mel_detached.mean(dim=1)  # (B, T)
+            sf = torch.exp(log_mean) / (arith_mean + 1e-8)  # (B, T)
+            sf_global = sf.mean(dim=-1, keepdim=True)  # (B, 1)
+            sf_snr_est = torch.tanh(
+                self.sf_to_snr_scale * sf_global + self.sf_to_snr_bias)
+            self._sf_snr_est = sf_snr_est  # (B, 1) stored for auxiliary MSE loss
+
             if snr_hint is not None:
-                # Training: use oracle SNR (B,) or (B,1) → (B, L, 1)
+                # Training: use oracle SNR (estimation noise blocked)
                 snr_hint_expanded = snr_hint.view(B, 1, 1).expand(-1, L, -1)
             else:
-                # Inference: estimate SNR from spectral flatness (SF)
-                # SF = geometric_mean / arithmetic_mean ∈ [0, 1]
-                # White noise: SF ≈ 0.95, clean speech: SF ≈ 0.1-0.2
-                mel_safe = mel.clamp(min=1e-6)  # (B, n_mels, T)
-                log_mean = torch.log(mel_safe).mean(dim=1)  # (B, T)
-                arith_mean = mel_safe.mean(dim=1)  # (B, T)
-                sf = torch.exp(log_mean) / (arith_mean + 1e-8)  # (B, T)
-                sf_global = sf.mean(dim=-1, keepdim=True)  # (B, 1)
-                snr_est = torch.tanh(
-                    self.sf_to_snr_scale * sf_global + self.sf_to_snr_bias)
-                snr_hint_expanded = snr_est.unsqueeze(-1).expand(-1, L, -1)  # (B, L, 1)
+                # Inference: use trained SF bridge
+                snr_hint_expanded = sf_snr_est.unsqueeze(-1).expand(-1, L, -1)
 
         # Patch projection
         x = self.patch_proj(x)  # (B, T, d_model)

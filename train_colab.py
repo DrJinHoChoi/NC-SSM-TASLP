@@ -668,6 +668,16 @@ def train_one_epoch(model, train_loader, optimizer, scheduler, device,
                     # Half weight for L2 — less critical than L1 routing
                     loss = loss + (routing_weight * 0.5) * routing_l2_loss
 
+        # [SF Bridge] Auxiliary supervision: train sf_to_snr mapping
+        # mel.detach() in forward() ensures estimation noise doesn't propagate
+        # Only sf_to_snr_scale/bias receive gradients from this loss
+        if (not is_cnn and hasattr(model, '_sf_snr_est')
+                and model._sf_snr_est is not None):
+            sf_target = snr_hint.detach()  # oracle SNR as supervision target
+            sf_pred = model._sf_snr_est.squeeze(-1)  # (B,)
+            sf_bridge_loss = F.mse_loss(sf_pred, sf_target)
+            loss = loss + 0.5 * sf_bridge_loss
+
         optimizer.zero_grad()
         loss.backward()
 
