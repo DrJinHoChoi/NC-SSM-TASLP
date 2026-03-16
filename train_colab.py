@@ -113,6 +113,7 @@ try:
         create_nanomamba_nc_large,
         # NC-SSM + NanoSE: Sequential Enhancement Expert for extreme low-SNR
         create_nanomamba_nc_nanose,
+        create_nanomamba_nc_nanose_v3,
         create_nanomamba_nc_matched_nanose,
     )
     print("  [OK] nanomamba.py loaded successfully")
@@ -3102,6 +3103,7 @@ MODEL_REGISTRY = {
     'NanoMamba-NC-Large-NASG': lambda n=12: create_nanomamba_nc_large(n, use_nasg=True),
     # NC-SSM + NanoSE: Sequential Enhancement Expert for extreme low-SNR KWS
     'NanoMamba-NC-NanoSE': create_nanomamba_nc_nanose,
+    'NanoMamba-NC-NanoSE-v3': create_nanomamba_nc_nanose_v3,
     'NanoMamba-NC-Matched-NanoSE': create_nanomamba_nc_matched_nanose,
     'DS-CNN-S': lambda n=12: DSCNN_S(n_classes=n),
     'BC-ResNet-1': lambda n=12: BCResNet(n_classes=n, scale=1),
