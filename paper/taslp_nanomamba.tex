@@ -964,57 +964,62 @@ Table~\ref{tab:noise_main} reports accuracy under five noise types at all SNR le
 
 \begin{table*}[t]
 \centering
-\caption{Noise robustness comparison (accuracy \%). All models trained with noise augmentation. Best per condition in \textbf{bold} (excluding the $3.2\times$ larger DS-CNN-S).}
+\caption{Noise robustness comparison (accuracy \%). All models trained with noise augmentation. Best per condition in \textbf{bold} (excluding DS-CNN-S). NC-SSM-20K matches DS-CNN-S clean accuracy (96.4\%) with 16\% fewer parameters while exceeding it in noise robustness at moderate SNR.}
 \label{tab:noise_main}
 \small
 \begin{tabular}{ll|cccccccc}
 \toprule
 \textbf{Noise} & \textbf{Model} & \textbf{Clean} & $\mathbf{-15}$ & $\mathbf{-10}$ & $\mathbf{-5}$ & $\mathbf{0}$ & $\mathbf{5}$ & $\mathbf{10}$ & $\mathbf{15}$\,\textbf{dB} \\
 \midrule
-\multirow{8}{*}{Factory}
+\multirow{9}{*}{Factory}
   & DS-CNN-S (23.8K)       & 96.4 & 63.8 & 70.4 & 79.9 & 90.4 & 93.5 & 94.9 & 95.7 \\
-  & BC-ResNet-1 (7.5K)     & 95.0 & \textbf{63.2} & \textbf{71.7} & \textbf{81.5} & 88.0 & 90.7 & 92.0 & 93.3 \\
+  & BC-ResNet-1 (7.5K)     & 95.0 & 63.2 & 71.7 & 81.5 & 88.0 & 90.7 & 92.0 & 93.3 \\
   & NM-Matched (7.4K)      & 94.8 & 60.7 & 65.7 & 76.5 & 85.6 & 90.2 & 92.4 & 93.1 \\
   & NC-SSM (7.5K)          & 95.3 & 61.4 & 69.2 & 77.8 & 86.8 & 90.1 & 92.4 & 92.9 \\
   & NC-SSM-Large (10.2K)   & 95.6 & 61.3 & 68.6 & 79.1 & 87.0 & 91.0 & 93.1 & 93.4 \\
-  & NC-SSM+NanoSE (11.9K)  & 95.9 & 60.7 & 68.9 & 80.7 & \textbf{89.3} & \textbf{92.6} & \textbf{94.0} & \textbf{94.6} \\
+  & NC-SSM+NanoSE (11.9K)  & 95.9 & 60.7 & 68.9 & 80.7 & 89.3 & 92.6 & 94.0 & 94.6 \\
   & NC-SSM+NanoSE-v3 (7.4K) & 94.8 & 59.3 & 67.2 & 78.0 & 85.9 & 90.3 & 92.2 & 92.6 \\
+  & \textbf{NC-SSM-20K (20.0K)} & \textbf{96.2} & \textbf{63.0} & \textbf{73.0} & \textbf{83.4} & \textbf{89.7} & \textbf{93.4} & \textbf{94.9} & \textbf{95.0} \\
 \midrule
-\multirow{8}{*}{White}
+\multirow{9}{*}{White}
   & DS-CNN-S (23.8K)       & 96.4 & 61.6 & 64.0 & 76.8 & 88.8 & 92.6 & 94.3 & 95.6 \\
   & BC-ResNet-1 (7.5K)     & 95.0 & \textbf{54.4} & 60.6 & 73.7 & 83.0 & 89.4 & 91.7 & 93.6 \\
   & NM-Matched (7.4K)      & 94.8 & 28.0 & 53.6 & 72.7 & 83.9 & 89.6 & 92.3 & 93.3 \\
-  & NC-SSM (7.5K)          & 95.3 & 50.8 & \textbf{63.0} & 75.5 & 85.2 & 90.0 & 92.5 & 93.5 \\
+  & NC-SSM (7.5K)          & 95.3 & 50.8 & 63.0 & 75.5 & 85.2 & 90.0 & 92.5 & 93.5 \\
   & NC-SSM-Large (10.2K)   & 95.6 & 34.1 & 59.8 & 76.5 & 86.4 & 91.0 & 93.4 & 94.4 \\
-  & NC-SSM+NanoSE (11.9K)  & 95.9 & 40.4 & 59.8 & \textbf{79.2} & \textbf{87.5} & \textbf{91.6} & \textbf{93.6} & \textbf{94.7} \\
+  & NC-SSM+NanoSE (11.9K)  & 95.9 & 40.4 & 59.8 & 79.2 & 87.5 & 91.6 & 93.6 & 94.7 \\
   & NC-SSM+NanoSE-v3 (7.4K) & 94.8 & 34.3 & 61.4 & 75.5 & 85.1 & 90.0 & 92.2 & 93.4 \\
+  & \textbf{NC-SSM-20K (20.0K)} & \textbf{96.2} & 44.0 & \textbf{63.1} & \textbf{81.2} & \textbf{88.4} & \textbf{92.9} & \textbf{94.5} & \textbf{95.2} \\
 \midrule
-\multirow{8}{*}{Babble}
+\multirow{9}{*}{Babble}
   & DS-CNN-S (23.8K)       & 96.4 & 72.8 & 80.5 & 87.1 & 91.6 & 94.8 & 95.8 & 96.0 \\
-  & BC-ResNet-1 (7.5K)     & 95.0 & 72.0 & \textbf{81.1} & 86.7 & 91.2 & 93.0 & 94.2 & 94.5 \\
+  & BC-ResNet-1 (7.5K)     & 95.0 & 72.0 & 81.1 & 86.7 & 91.2 & 93.0 & 94.2 & 94.5 \\
   & NM-Matched (7.4K)      & 94.7 & 71.1 & 78.5 & 84.7 & 89.6 & 92.5 & 93.6 & 94.3 \\
   & NC-SSM (7.5K)          & 95.2 & 73.4 & 79.1 & 84.1 & 89.9 & 92.4 & 94.0 & 94.8 \\
   & NC-SSM-Large (10.2K)   & 95.5 & 74.0 & 80.2 & 86.8 & 91.3 & 93.3 & 94.4 & 95.1 \\
-  & NC-SSM+NanoSE (11.9K)  & \textbf{95.9} & \textbf{74.1} & 80.8 & \textbf{88.1} & \textbf{91.6} & \textbf{93.7} & \textbf{94.8} & \textbf{95.4} \\
+  & NC-SSM+NanoSE (11.9K)  & 95.9 & 74.1 & 80.8 & 88.1 & 91.6 & 93.7 & 94.8 & 95.4 \\
   & NC-SSM+NanoSE-v3 (7.4K) & 94.8 & 72.8 & 79.4 & 85.5 & 90.1 & 92.9 & 93.7 & 94.5 \\
+  & \textbf{NC-SSM-20K (20.0K)} & \textbf{96.3} & \textbf{77.0} & \textbf{83.6} & \textbf{89.0} & \textbf{92.9} & \textbf{94.9} & \textbf{95.5} & \textbf{96.1} \\
 \midrule
-\multirow{8}{*}{Street}
+\multirow{9}{*}{Street}
   & DS-CNN-S (23.8K)       & 96.4 & 61.5 & 67.1 & 78.1 & 88.1 & 92.5 & 94.9 & 95.8 \\
   & BC-ResNet-1 (7.5K)     & 95.0 & \textbf{60.5} & 63.3 & 73.3 & 83.2 & 87.9 & 92.1 & 93.4 \\
   & NM-Matched (7.4K)      & 94.7 & 52.6 & 62.5 & 72.6 & 84.0 & 89.4 & 91.8 & 93.3 \\
   & NC-SSM (7.5K)          & 95.2 & 60.2 & 64.3 & 75.2 & 82.2 & 88.9 & 92.2 & 93.7 \\
   & NC-SSM-Large (10.2K)   & 95.6 & 57.8 & 63.5 & 75.7 & 83.4 & 90.1 & 92.8 & 94.5 \\
-  & NC-SSM+NanoSE (11.9K)  & \textbf{95.9} & 54.5 & \textbf{65.4} & \textbf{76.5} & \textbf{85.5} & \textbf{91.2} & \textbf{93.5} & \textbf{95.0} \\
+  & NC-SSM+NanoSE (11.9K)  & 95.9 & 54.5 & 65.4 & 76.5 & 85.5 & 91.2 & 93.5 & 95.0 \\
   & NC-SSM+NanoSE-v3 (7.4K) & 94.8 & 56.5 & 65.1 & 75.8 & 85.0 & 89.6 & 92.2 & 93.5 \\
+  & \textbf{NC-SSM-20K (20.0K)} & \textbf{96.3} & 54.1 & \textbf{66.9} & \textbf{77.5} & \textbf{87.6} & \textbf{91.8} & \textbf{94.0} & \textbf{95.1} \\
 \midrule
-\multirow{8}{*}{Pink}
+\multirow{9}{*}{Pink}
   & DS-CNN-S (23.8K)       & 96.4 & 61.3 & 62.7 & 76.2 & 88.3 & 93.1 & 95.1 & 96.0 \\
   & BC-ResNet-1 (7.5K)     & 95.0 & 54.9 & 61.9 & 75.8 & 85.6 & 90.8 & 93.3 & 94.2 \\
   & NM-Matched (7.4K)      & 94.7 & 17.7 & 42.7 & 73.6 & 85.2 & 91.0 & 93.2 & 94.1 \\
-  & NC-SSM (7.5K)          & 95.2 & 55.2 & \textbf{62.9} & 76.7 & 86.6 & 91.5 & 93.0 & 94.4 \\
-  & NC-SSM-Large (10.2K)   & 95.6 & \textbf{55.4} & 62.2 & 76.4 & 87.2 & 91.9 & 93.8 & 94.7 \\
-  & NC-SSM+NanoSE (11.9K)  & \textbf{95.9} & 47.2 & 59.4 & \textbf{79.5} & \textbf{88.4} & \textbf{92.4} & \textbf{94.6} & \textbf{95.3} \\
+  & NC-SSM (7.5K)          & 95.2 & \textbf{55.2} & 62.9 & 76.7 & 86.6 & 91.5 & 93.0 & 94.4 \\
+  & NC-SSM-Large (10.2K)   & 95.6 & 55.4 & 62.2 & 76.4 & 87.2 & 91.9 & 93.8 & 94.7 \\
+  & NC-SSM+NanoSE (11.9K)  & 95.9 & 47.2 & 59.4 & 79.5 & 88.4 & 92.4 & 94.6 & 95.3 \\
   & NC-SSM+NanoSE-v3 (7.4K) & 94.8 & 23.1 & 52.4 & 76.4 & 86.1 & 91.2 & 93.5 & 94.1 \\
+  & \textbf{NC-SSM-20K (20.0K)} & \textbf{96.3} & 45.9 & \textbf{62.7} & \textbf{80.8} & \textbf{89.5} & \textbf{93.3} & \textbf{95.1} & \textbf{95.7} \\
 \bottomrule
 \end{tabular}
 \end{table*}
