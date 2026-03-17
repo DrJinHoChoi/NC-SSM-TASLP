@@ -30,13 +30,12 @@
 \definecolor{plotcnn}{RGB}{220,60,47}
 \definecolor{plotssm}{RGB}{40,100,195}
 \definecolor{plotlarge}{RGB}{0,153,136}
-\definecolor{plotnasg}{RGB}{170,85,210}
 
 \title{NC-SSM: Noise-Conditioned State Space Models for Robust and Efficient Keyword Spotting}
 
 \author{Jin~Ho~Choi,~\IEEEmembership{Member,~IEEE}%
 \thanks{J.~H.~Choi is with SmartEar Company, Seoul, South Korea (e-mail: jinhochoi@smartear.co.kr).}%
-\thanks{This paper extends the authors' preliminary work presented at Interspeech 2026~\cite{choi2026nanomamba_interspeech}. Extensions include: (1)~formal analysis of SSM structural noise robustness (Section~\ref{sec:structural}), (2)~detailed noise propagation theory with variance bounds (Section~\ref{sec:analysis}), (3)~NC-SSM with per-sub-band selectivity, conditioning, LSG, and spectral enhancement (Section~\ref{sec:ncssm}), (4)~comprehensive evaluation with 6~models across 36~conditions (Section~\ref{sec:results}), (5)~Noise-Aware Selective Gating (NASG) with adaptive state masking achieving $O(\sigma_n^2)$ noise propagation (Section~\ref{sec:nasg}), and (6)~SNR teacher-student training framework (Section~\ref{sec:teacher_student}).}%
+\thanks{This paper extends the authors' preliminary work presented at Interspeech 2026~\cite{choi2026nanomamba_interspeech}. Extensions include: (1)~formal analysis of SSM structural noise robustness (Section~\ref{sec:structural}), (2)~detailed noise propagation theory with variance bounds (Section~\ref{sec:analysis}), (3)~NC-SSM with per-sub-band selectivity, conditioning, LSG, and spectral enhancement (Section~\ref{sec:ncssm}), and (4)~comprehensive evaluation with 6~models across 36~conditions (Section~\ref{sec:results}).}%
 \thanks{Manuscript submitted March 2026.}}
 
 \begin{document}
@@ -50,15 +49,15 @@ We present \textbf{NC-SSM} (Noise-Conditioned State Space Model), a structurally
 We first show that selective SSMs possess \emph{inherent} noise robustness: models trained on clean speech alone outperform all comparable lightweight CNNs at SNRs above $-5$\,dB, retaining 77.7\% accuracy at 0\,dB---11 percentage points above the best CNN of similar size.
 This robustness originates from the SSM's input-dependent dynamics, which naturally attenuate stationary noise.
 However, under severe noise conditions, multiplicative noise propagation through these same parameters degrades performance, particularly when the noise environment is inaccurately estimated at low SNRs.
-NC-SSM addresses this limitation through five complementary mechanisms: (1)~per-sub-band selectivity modulation that adapts SSM dynamics to local noise characteristics, (2)~noise-aware selective gating (NASG) that achieves $O(\sigma_n^2)$ noise propagation---matching the CNN bound---by eliminating residual selectivity at low SNR, (3)~adaptive state masking for SNR-dependent dimensionality reduction, (4)~a Learned Spectral Gate (LSG) for input-level denoising, and (5)~optimized spectral subtraction with adaptive bypass gating.
-An SNR teacher-student training framework enables NASG to use oracle SNR during training while deploying with a lightweight spectral-flatness bridge.
+NC-SSM addresses this limitation through three complementary mechanisms: (1)~per-sub-band selectivity modulation that adapts SSM dynamics to local noise characteristics, (2)~a Learned Spectral Gate (LSG) for input-level denoising, and (3)~optimized spectral subtraction with adaptive bypass gating.
+Additionally, stationarity-conditioned $\Delta$ floor and spectral-flatness-conditioned $\mathbf{B}$ base provide noise-type-aware conditioning.
 With only \textbf{7{,}453~parameters}---fewer than BC-ResNet-1 (7{,}464)---NC-SSM matches the CNN baseline's clean accuracy (95.0\%) while achieving superior robustness across all 35~noise conditions tested.
 Scaling to NC-SSM-Large (10{,}201 parameters) further improves clean accuracy to \textbf{95.6\%}, surpassing BC-ResNet-1.
 Crucially, the SSM architecture provides a fundamental efficiency advantage on edge hardware: NC-SSM requires \textbf{1.8$\times$ fewer full-pipeline MACs} (3.42M vs.\ 6.15M) with the model inference component alone requiring \textbf{5.6$\times$ fewer MACs} (0.86M vs.\ 4.99M), and achieves \textbf{1.8$\times$ lower latency} (7.1\,ms vs.\ 12.8\,ms on Cortex-M7), establishing that noise robustness and deployment efficiency are not competing objectives but complementary strengths of noise-conditioned SSMs.
 \end{abstract}
 
 \begin{IEEEkeywords}
-Keyword spotting, state space model, noise robustness, selectivity modulation, noise-aware gating, teacher-student training, edge device
+Keyword spotting, state space model, noise robustness, selectivity modulation, spectral gating, edge device
 \end{IEEEkeywords}
 
 
@@ -86,12 +85,11 @@ We resolve this with \textbf{NC-SSM} (Noise-Conditioned SSM), which addresses th
 \begin{enumerate}
 \setlength\itemsep{0pt}
 \item \textbf{Per-sub-band selectivity modulation}: Each SSM state is paired with a frequency sub-band, enabling frequency-aware selectivity that suppresses noise in corrupted bands while maintaining full adaptive dynamics in clean bands.
-\item \textbf{Noise-Aware Selective Gating (NASG)}: An SNR-dependent gate eliminates residual selectivity at low SNR, achieving $O(\sigma_n^2)$ noise propagation---matching the CNN bound---with only 2 parameters per block.
-\item \textbf{Adaptive state masking}: Input-gated per-state masks reduce the effective state dimensionality under noise, preventing noise entry into higher-indexed states with longer memory.
+\item \textbf{Stationarity-conditioned $\Delta$ floor}: A DualPCEN-derived stationarity signal modulates the minimum discretization step, enforcing longer temporal memory under stationary noise.
+\item \textbf{Spectral-flatness-conditioned $\mathbf{B}$ base}: Broadband vs.\ narrowband noise detection strengthens fixed input coupling under broadband noise.
 \item \textbf{Learned Spectral Gate (LSG)}: A lightweight per-frequency gating module provides explicit input-level denoising, complementing the SSM's implicit robustness with 120 learned parameters.
 \item \textbf{Optimized spectral subtraction with adaptive bypass}: A zero-parameter signal processing front-end with SNR-adaptive bypass gating provides additional robustness under extreme noise without affecting clean performance.
 \end{enumerate}
-An \textbf{SNR teacher-student training framework} enables NASG and state masking to learn from oracle SNR during training while deploying with a lightweight spectral-flatness bridge at inference.
 
 NC-SSM achieves all this with only \textbf{7{,}453 parameters}---11 fewer than BC-ResNet-1---while matching its clean accuracy at 95.0\%.
 The decisive advantage is computational: NC-SSM requires \textbf{1.8$\times$ fewer full-pipeline MACs} (3.42M vs.\ 6.15M), with the neural-network forward pass alone requiring \textbf{5.6$\times$ fewer MACs} (0.86M vs.\ 4.99M), and achieves \textbf{1.8$\times$ lower latency} (7.1\,ms vs.\ 12.8\,ms on Cortex-M7), establishing that noise robustness and deployment efficiency are complementary strengths of noise-conditioned SSMs.
@@ -102,8 +100,6 @@ Our contributions are:
 \item \textbf{Structural robustness analysis}: First formal analysis of \emph{why} selective SSMs are inherently noise-robust, through input-dependent $\Delta$, $\mathbf{B}$, $\mathbf{C}$ dynamics that act as implicit noise-adaptive filters (Section~\ref{sec:structural}).
 \item \textbf{Noise propagation theory}: Formal derivation of multiplicative ($O(\sigma_n^6)$) vs.\ additive ($O(\sigma_n^2)$) noise variance, with crossover analysis identifying the SNR regime where structural robustness transitions to vulnerability, and proof that LTI-SSM $\equiv$ learned causal convolution (Section~\ref{sec:analysis}).
 \item \textbf{NC-SSM architecture}: A noise-conditioned SSM integrating per-sub-band selectivity modulation, stationarity and spectral-flatness conditioning, Learned Spectral Gate, and optimized spectral subtraction with adaptive bypass (Sections~\ref{sec:smssm}--\ref{sec:ncssm}).
-\item \textbf{Noise-Aware Selective Gating (NASG)}: Formally bridges the $O(\sigma_n^6)$-to-$O(\sigma_n^2)$ gap with only 2 parameters per block, combined with input-gated state masking for adaptive state dimensionality reduction (Section~\ref{sec:nasg}).
-\item \textbf{SNR teacher-student training}: Oracle-supervised training with a spectral-flatness bridge for deployment, enabling NASG without runtime oracle SNR (Section~\ref{sec:teacher_student}).
 \item \textbf{Efficiency--robustness Pareto front}: NC-SSM achieves 1.8$\times$ fewer full-pipeline MACs (5.6$\times$ for model inference alone) and 1.8$\times$ lower latency than the CNN baseline at matched accuracy with only 7{,}443 parameters, demonstrating that noise robustness and deployment efficiency are complementary (Sections~\ref{sec:results}--\ref{sec:mcu_deploy}).
 \end{enumerate}
 
@@ -432,7 +428,7 @@ The analysis yields a clear principle:
 \end{equation}
 At high SNR, full selectivity ($\sigma = 1$) exploits input-dependent adaptation.
 At low SNR, reduced selectivity ($\sigma \to 0$) provides CNN-like noise immunity.
-The remaining sections realize this principle architecturally via selectivity modulation (Sections~\ref{sec:smssm}--\ref{sec:nasg}).
+The remaining sections realize this principle architecturally via selectivity modulation (Sections~\ref{sec:smssm}--\ref{sec:ncssm}).
 
 
 % ============================================================
@@ -521,7 +517,7 @@ Initialization ensures training starts identical to the standard SSM: $\theta_\D
 \label{sec:ncssm}
 
 SM-SSM uses a scalar mean SNR to derive $\sigma$, discarding frequency-dependent noise structure.
-NC-SSM extends SM-SSM with frequency-aware noise conditioning, noise-aware selective gating (NASG), adaptive state masking, and an SNR teacher-student training framework.
+NC-SSM extends SM-SSM with frequency-aware noise conditioning, a Learned Spectral Gate, and optimized spectral subtraction with adaptive bypass.
 
 \subsection{Limitation of Scalar Selectivity}
 
@@ -637,108 +633,15 @@ At high SNR, $\lambda_t \to 1$ (original signal preserved); at low SNR with stat
 The adaptive threshold ensures aggressive enhancement for stationary noise while preventing distortion on non-stationary noise.
 SS+Bypass requires \textbf{zero additional parameters}.
 
-\subsection{Noise-Aware Selective Gating (NASG)}
-\label{sec:nasg}
-
-The selectivity gate $\sigma$ (Section~\ref{sec:smssm}) reduces selectivity at low SNR, but residual selectivity ($\sigma \approx 0.05$ at $-15$\,dB) still introduces multiplicative coupling: even $\sigma = 0.05$ amplifies noise cross-terms by $\sigma_n^4 \approx 1{,}000\times$ at $-15$\,dB.
-NASG introduces a second, SNR-dependent gate that \emph{eliminates} residual selectivity entirely.
-
-Let $h_{\text{snr}} \in [-1, 1]$ denote an SNR hint signal (Section~\ref{sec:teacher_student}).
-The NASG gate is:
-\begin{equation}
-g = \sigma\!\big(\alpha_{\text{nasg}} \cdot h_{\text{snr}} + \beta_{\text{nasg}}\big),
-\label{eq:nasg_gate}
-\end{equation}
-where $\alpha_{\text{nasg}}$ and $\beta_{\text{nasg}}$ are learnable parameters (initialized to 5.0 and 0.0 respectively).
-The modified blending becomes:
-\begin{equation}
-\Delta_t = \sigma_\Delta \cdot g \cdot \Delta_{\text{sel}}(x_t) + (1 - \sigma_\Delta) \cdot \theta_\Delta,
-\label{eq:nasg_blend}
-\end{equation}
-and similarly for $\mathbf{B}_t$, $\mathbf{C}_t$.
-In practice, this is implemented by scaling the projection input: $\tilde{x}_t = g \cdot x_t$ before computing $\Delta_{\text{sel}}(\tilde{x}_t)$, $\mathbf{B}_{\text{sel}}(\tilde{x}_t)$, and $\mathbf{C}_{\text{sel}}(\tilde{x}_t)$---mathematically equivalent but computationally simpler.
-
-\begin{proposition}[O($\sigma_n^2$) Guarantee]
-\label{prop:nasg}
-With NASG, $\mathrm{Var}[u_t] = O(\sigma_n^2)$ at all SNR levels.
-\end{proposition}
-
-\begin{proof}
-At low SNR, $g \to 0$: the selective components $\Delta_{\text{sel}}, \mathbf{B}_{\text{sel}}, \mathbf{C}_{\text{sel}}$ vanish, and the state update reduces to $u_t = \theta_\Delta \cdot \theta_B \cdot x_t$---a fixed linear transform with $O(\sigma_n^2)$ variance.
-At high SNR, $g \to 1$: full selectivity is preserved, and noise variance is negligible.
-The transition is smooth via the sigmoid gate.
-\end{proof}
-
-Experimentally, the effective selectivity $\sigma \cdot g \approx 0.001$ at $-15$\,dB, suppressing noise cross-terms by $\sim$2{,}500$\times$ compared to the $\sigma$-gate alone.
-NASG adds only \textbf{2 parameters per block} ($\alpha_{\text{nasg}}$, $\beta_{\text{nasg}}$).
-
-\subsection{Adaptive State Masking}
-\label{sec:state_mask}
-
-While NASG suppresses the \emph{selective} component, the fixed parameters $\theta_\Delta$, $\bm{\theta}_B$ still drive the state update in LTI mode.
-At low SNR, noise accumulates across all $N$ state dimensions, with higher-indexed states (longer effective memory via $|\bar{A}_n| \to 1$) accumulating proportionally more noise.
-We introduce \emph{input-gated state masking}:
-\begin{equation}
-\mathbf{h}_t = \bar{\mathbf{A}}_t\,\mathbf{h}_{t-1} + \mathbf{m} \odot \bar{\mathbf{B}}_t\,x_t,
-\label{eq:state_mask}
-\end{equation}
-where the per-state mask is:
-\begin{equation}
-m_n = \sigma\!\big(\gamma_m \cdot h_{\text{snr}} + \beta_m - p_n\big), \quad p_n = \frac{2n}{N{-}1},
-\label{eq:state_mask_gate}
-\end{equation}
-with learnable scale $\gamma_m$ (init 3.0) and bias $\beta_m$ (init 0.0).
-The linearly increasing penalty $p_n$ prioritizes deactivation of higher-indexed states, which have longer memory and accumulate more noise.
-
-Crucially, the mask is applied to the state \emph{input} rather than the output.
-Output-gating ($y_t = (\mathbf{m} \odot \mathbf{C})\,\mathbf{h}_t$) allows noise to accumulate freely across $T$ frames before discarding the corrupted state; input-gating prevents noise \emph{entry}, keeping $\|\mathbf{h}_{t,n}\| \approx 0$ for masked states.
-At $-15$\,dB, the effective state dimension reduces to $N_{\text{eff}} \approx 0.2\text{--}0.3$ (from $N{=}8$), concentrating computation on the most informative, least noisy state components.
-State masking adds \textbf{2 parameters per block} ($\gamma_m$, $\beta_m$).
-
-\subsection{SNR Teacher-Student Training}
-\label{sec:teacher_student}
-
-NASG and state masking require an SNR hint $h_{\text{snr}} \in [-1, 1]$.
-During training, the oracle SNR is known (used for noise mixing); during inference, it must be estimated.
-We adopt a teacher-student paradigm.
-
-\smallskip\noindent\textbf{SNR hint mapping.}
-The oracle SNR is compressed to $[-1, 1]$ via:
-\begin{equation}
-h_{\text{snr}} = \tanh\!\Big(\frac{\text{SNR}_{\text{dB}}}{10}\Big).
-\label{eq:snr_hint}
-\end{equation}
-Clean speech uses $\text{SNR}_{\text{dB}} = 25$, yielding $h_{\text{snr}} \approx 0.987$.
-This mapping provides approximately linear sensitivity in the critical $-10$ to $+10$\,dB range while saturating at extremes.
-
-\smallskip\noindent\textbf{Teacher (training).}
-The oracle $h_{\text{snr}}$ is passed directly to the NASG gate~\eqref{eq:nasg_gate} and state mask~\eqref{eq:state_mask_gate}, enabling the model to learn the theoretically optimal gate response as a function of true SNR.
-
-\smallskip\noindent\textbf{Student (inference).}
-At deployment, we estimate $h_{\text{snr}}$ from spectral flatness (SF)---the ratio of the geometric to arithmetic mean of mel-band energies:
-\begin{equation}
-\hat{h}_{\text{snr}} = \tanh\!\big(w_{\text{sf}} \cdot \overline{\text{SF}} + b_{\text{sf}}\big),
-\label{eq:sf_bridge}
-\end{equation}
-where $w_{\text{sf}}$ and $b_{\text{sf}}$ are learnable parameters trained via a detached auxiliary loss:
-\begin{equation}
-\mathcal{L}_{\text{sf}} = \lambda_{\text{sf}} \cdot \text{MSE}\!\big(\hat{h}_{\text{snr}},\; h_{\text{snr}}^{\text{oracle}}\big), \quad \lambda_{\text{sf}} = 0.5.
-\label{eq:sf_loss}
-\end{equation}
-The \texttt{detach()} operation on the mel spectrogram blocks gradient flow from the SF bridge to the feature extractor, ensuring only $w_{\text{sf}}$ and $b_{\text{sf}}$ receive gradients from $\mathcal{L}_{\text{sf}}$.
-
-The teacher-student framework adds \textbf{2 model-level parameters} ($w_{\text{sf}}$, $b_{\text{sf}}$).
-
 \subsection{NC-SSM Parameter Summary}
 
-NC-SSM adds per block: $\mathbf{w}^{\text{sub}}$ ($N$), $\alpha_s$ (1), $\mathbf{w}_{sf}$ ($N$) = $2N{+}1 = 13$ for frequency conditioning; $\alpha_{\text{nasg}}$, $\beta_{\text{nasg}}$ (2) for NASG; $\gamma_m$, $\beta_m$ (2) for state masking.
-Total per block: $2N{+}5 = 17$ parameters.
-With 2 blocks: +34.
+NC-SSM adds per block: $\mathbf{w}^{\text{sub}}$ ($N$), $\alpha_s$ (1), $\mathbf{w}_{sf}$ ($N$) = $2N{+}1 = 13$ for frequency conditioning.
+Total per block: $2N{+}1 = 13$ parameters.
+With 2 blocks: +26.
 LSG: +120.
-SF bridge: +2.
 \textbf{Total NC-SSM: 7{,}453 parameters}---11 \emph{fewer} than BC-ResNet-1 (7{,}464).
 
-Warm-start initialization preserves SM-SSM behavior: $\mathbf{w}^{\text{sub}} = 5.0 \cdot \mathbf{1}_N$, $\alpha_s = 0$, $\mathbf{w}_{sf} = \mathbf{0}$, $\alpha_{\text{nasg}} = 5.0$, $\beta_{\text{nasg}} = 0$, $\gamma_m = 3.0$, $\beta_m = 0$.
+Warm-start initialization preserves SM-SSM behavior: $\mathbf{w}^{\text{sub}} = 5.0 \cdot \mathbf{1}_N$, $\alpha_s = 0$, $\mathbf{w}_{sf} = \mathbf{0}$.
 
 
 % ============================================================
@@ -772,16 +675,14 @@ Warm-start initialization preserves SM-SSM behavior: $\mathbf{w}^{\text{sub}} = 
 % SSM Block 1
 \node[ssmblock, right=0.6cm of pcen, minimum height=3.6cm] (blk1box) {};
 \node[font=\small\sffamily\bfseries, text=ssmcolor!80] at ([yshift=1.5cm]blk1box.center) {NC-SSM Block 1};
-\node[ssm, minimum width=2.4cm, minimum height=0.7cm] at ([yshift=0.6cm]blk1box.center) (scan1) {Selective Scan\\{\tiny $d{=}16,\,N{=}6$}};
-\node[ncnew, minimum width=2.4cm, minimum height=0.7cm] at ([yshift=-0.25cm]blk1box.center) (sig1) {$\bm{\sigma}$ + NASG\\{\tiny per-sub-band}};
-\node[ncnew, minimum width=2.4cm, minimum height=0.5cm, font=\tiny\sffamily] at ([yshift=-1.05cm]blk1box.center) (mask1) {State Mask\\{\tiny input-gated}};
+\node[ssm, minimum width=2.4cm, minimum height=0.7cm] at ([yshift=0.3cm]blk1box.center) (scan1) {Selective Scan\\{\tiny $d{=}16,\,N{=}6$}};
+\node[ncnew, minimum width=2.4cm, minimum height=0.7cm] at ([yshift=-0.7cm]blk1box.center) (sig1) {$\bm{\sigma}$-gate\\{\tiny per-sub-band}};
 
 % SSM Block 2
 \node[ssmblock, right=0.5cm of blk1box, minimum height=3.6cm] (blk2box) {};
 \node[font=\small\sffamily\bfseries, text=ssmcolor!80] at ([yshift=1.5cm]blk2box.center) {NC-SSM Block 2};
-\node[ssm, minimum width=2.4cm, minimum height=0.7cm] at ([yshift=0.6cm]blk2box.center) (scan2) {Selective Scan\\{\tiny $d{=}16,\,N{=}6$}};
-\node[ncnew, minimum width=2.4cm, minimum height=0.7cm] at ([yshift=-0.25cm]blk2box.center) (sig2) {$\bm{\sigma}$ + NASG\\{\tiny per-sub-band}};
-\node[ncnew, minimum width=2.4cm, minimum height=0.5cm, font=\tiny\sffamily] at ([yshift=-1.05cm]blk2box.center) (mask2) {State Mask\\{\tiny input-gated}};
+\node[ssm, minimum width=2.4cm, minimum height=0.7cm] at ([yshift=0.3cm]blk2box.center) (scan2) {Selective Scan\\{\tiny $d{=}16,\,N{=}6$}};
+\node[ncnew, minimum width=2.4cm, minimum height=0.7cm] at ([yshift=-0.7cm]blk2box.center) (sig2) {$\bm{\sigma}$-gate\\{\tiny per-sub-band}};
 
 % Classifier
 \node[shared, right=0.5cm of blk2box, minimum width=1.5cm] (pool) {Global\\AvgPool};
@@ -803,8 +704,6 @@ Warm-start initialization preserves SM-SSM behavior: $\mathbf{w}^{\text{sub}} = 
 % === Internal block arrows ===
 \draw[arr, color=newcolor!80] (sig1) -- (scan1);
 \draw[arr, color=newcolor!80] (sig2) -- (scan2);
-\draw[arr, color=newcolor!80] (mask1) -- (scan1);
-\draw[arr, color=newcolor!80] (mask2) -- (scan2);
 
 % === SNR estimation branch (below main path) ===
 \node[ncnew, below=1.2cm of lsg, minimum width=2.2cm] (snrest) {SNR Estimation\\{\tiny per-band, $\hat{\mathbf{s}}_t \in \mathbb{R}^{40}$}};
@@ -814,8 +713,6 @@ Warm-start initialization preserves SM-SSM behavior: $\mathbf{w}^{\text{sub}} = 
 \node[ncnew, left=0.4cm of subpool, minimum width=1.5cm, minimum height=0.6cm, font=\tiny\sffamily] (stat) {Stationarity\\$g_t$};
 \node[ncnew, right=0.4cm of subpool, minimum width=1.5cm, minimum height=0.6cm, font=\tiny\sffamily] (sf) {Spec.~Flat.\\$\beta_t$};
 
-% Teacher/SF Bridge
-\node[ncnew, below=0.3cm of sf, minimum width=1.8cm, minimum height=0.6cm, font=\tiny\sffamily] (sfbridge) {SF Bridge\\{\tiny Teacher/Student}};
 
 % Conditioning arrows
 \draw[cond] (mel.south) -- ++(0,-0.35) -| (snrest.north);
@@ -826,10 +723,6 @@ Warm-start initialization preserves SM-SSM behavior: $\mathbf{w}^{\text{sub}} = 
 \draw[cond] (snrest) -| (ss.south);
 \draw[cond] (stat.north) -- ++(0,0.2) -| ([xshift=-0.4cm]sig1.south);
 \draw[cond] (sf.north) -- ++(0,0.15) -| ([xshift=0.4cm]sig1.south);
-% SF Bridge → NASG/State Mask conditioning
-\draw[cond] (sf) -- (sfbridge);
-\draw[cond] (sfbridge.east) -- ++(0.3,0) |- ([yshift=-0.1cm]mask1.south);
-\draw[cond] ([xshift=0.3cm]sfbridge.east) -- ++(0.3,0) |- ([yshift=-0.1cm]mask2.south);
 
 \end{tikzpicture}%
 }% end resizebox
@@ -842,7 +735,7 @@ Warm-start initialization preserves SM-SSM behavior: $\mathbf{w}^{\text{sub}} = 
 \tikz{\node[fill=sharedcolor!12, draw=sharedcolor!70, rounded corners=2pt, minimum width=0.5cm, minimum height=0.25cm] {};}\,Shared / Standard \quad
 \tikz{\draw[->, thick, dashed, color=newcolor!80] (0,0) -- (0.5,0);}\,Conditioning path
 }
-\caption{NC-SSM architecture: Noise-conditioned SSM with per-sub-band selectivity modulation, NASG, adaptive state masking, SNR teacher-student bridge, Learned Spectral Gate, and optimized spectral enhancement---the most parameter-efficient noise-robust KWS model at 7{,}453 parameters.}
+\caption{NC-SSM architecture: Noise-conditioned SSM with per-sub-band selectivity modulation, Learned Spectral Gate, and optimized spectral subtraction with adaptive bypass---achieving 95.3\% clean accuracy with only 7{,}453 parameters.}
 \label{fig:architecture}
 \end{figure*}
 
@@ -881,14 +774,13 @@ Noise is mixed at $\{-15, -10, -5, 0, 5, 10, 15\}$\,dB SNR, yielding $5 \times 7
 \midrule
 DS-CNN-S~\cite{zhang2017hello} & CNN & 23{,}756 & 23.2\,KB \\
 BC-ResNet-1~\cite{kim2021bcresnet} & CNN & 7{,}464 & 7.3\,KB \\
-SAGN & CNN+LSG & 7{,}240 & 7.1\,KB \\
 \midrule
 NM-Matched (SA-SSM v2) & SSM & 7{,}402 & 7.2\,KB \\
-SM-SSM & SSM & 7{,}440 & 7.3\,KB \\
 \textbf{NC-SSM} & SSM+LSG & \textbf{7{,}453} & \textbf{7.3\,KB} \\
 NC-SSM-Large & SSM+LSG & 10{,}201 & 10.0\,KB \\
 NC-SSM+NanoSE & SSM+LSG+SE & 11{,}883 & 11.6\,KB \\
-NC-SSM-L+NASG & SSM+LSG+NASG & 10{,}211 & 10.0\,KB \\
+NC-SSM+NanoSE-v3 & SSM+SE & 7{,}405 & 7.2\,KB \\
+NC-SSM-20K & SSM+LSG & 20{,}044 & 19.6\,KB \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -896,9 +788,8 @@ NC-SSM-L+NASG & SSM+LSG+NASG & 10{,}211 & 10.0\,KB \\
 Table~\ref{tab:configs} lists all models.
 \textbf{NM-Matched} (NanoMamba-Matched) denotes the base SSM model---SA-SSM v2 with selectivity-aware gating---configured to match BC-ResNet-1's parameter budget ($d_{\text{model}}{=}20$, $d_{\text{state}}{=}6$, $d_{\text{conv}}{=}3$, expand${=}1.5$; 7{,}402 params).
 It serves as the SSM baseline against which NC-SSM's noise-conditioning components are evaluated.
-The SSM progression (NM-Matched $\to$ SM-SSM $\to$ NC-SSM) demonstrates incremental improvements with minimal parameter additions.
 NC-SSM-Large scales capacity via $d_{\text{model}}{=}24$, $N{=}8$ (vs.\ 16, 6), surpassing BC-ResNet-1's accuracy while maintaining $>$4$\times$ efficiency advantage.
-SAGN applies the same LSG front-end to BC-ResNet-1, serving as an SNR-adaptive CNN baseline.
+NC-SSM-20K further scales to $d_{\text{model}}{=}37$, $N{=}10$ (20{,}044 params), matching DS-CNN-S accuracy (96.4\%) with 5.1$\times$ fewer MACs.
 
 \subsection{Training Details}
 
@@ -911,9 +802,6 @@ All models are trained for 30 epochs with AdamW~\cite{loshchilov2019adamw} ($\be
 (4)~hard (epochs~20+): full ratio, SNR~$-15$--10\,dB.
 SSM models additionally use SpecAugment~\cite{park2019specaugment} and EMA (decay 0.999).
 
-\textbf{SNR teacher-student training} (Section~\ref{sec:teacher_student}): During noise-augmented training, the oracle SNR hint $h_{\text{snr}} = \tanh(\text{SNR}_{\text{dB}}/10)$ is passed directly to NASG and state masking gates.
-Clean batches use $h_{\text{snr}} = \tanh(25/10) \approx 0.987$.
-The SF bridge auxiliary loss ($\lambda_{\text{sf}} = 0.5$, MSE with \texttt{detach()}) trains the inference-time SNR estimator jointly with the main classification loss, without modifying the four-phase noise curriculum.
 
 
 % ============================================================
@@ -1112,7 +1000,7 @@ Table~\ref{tab:noise_main} reports accuracy under five noise types at all SNR le
   {\ref{shared_legend}};
 
 \end{tikzpicture}
-\caption{Accuracy vs.\ SNR per noise type. NC-SSM-Large ($\blacklozenge$) matches BC-ResNet-1 ($\blacksquare$) above 5\,dB with 1.6$\times$ fewer full-pipeline MACs. The gap below $-5$\,dB reflects $O(\sigma_n^6)$ multiplicative noise propagation, which NASG is designed to close. NC-SSM-L+NASG curves to be added after experimental evaluation.}
+\caption{Accuracy vs.\ SNR per noise type. NC-SSM-Large ($\blacklozenge$) matches BC-ResNet-1 ($\blacksquare$) above 5\,dB with 1.6$\times$ fewer full-pipeline MACs. The gap below $-5$\,dB reflects $O(\sigma_n^6)$ multiplicative noise propagation, which the selectivity modulation mechanism is designed to reduce.}
 \label{fig:snr_curve}
 \end{figure*}
 
@@ -1149,8 +1037,7 @@ Notably, NC-SSM+NanoSE exhibits negative SS interaction for pink noise ($-7.8$\,
 
 \begin{table}[t]
 \centering
-\caption{Cumulative ablation on factory noise. $\Delta$P: additional parameters vs.\ base model.
-White $-15$\,dB shown as the most challenging condition for SSMs.}
+\caption{NC-SSM conditioning ablation. $\Delta$P: additional parameters vs.\ base model. NC-SSM conditioning (+26 params) improves White $-15$\,dB from 31.1\% to 50.8\% (+19.7\,\%p).}
 \label{tab:ablation}
 \small
 \setlength{\tabcolsep}{3pt}
@@ -1159,19 +1046,9 @@ White $-15$\,dB shown as the most challenging condition for SSMs.}
 \textbf{Configuration} & \textbf{$\Delta$P} & \textbf{Clean} & \textbf{Fact. 0} & \textbf{Wht. $-$15} \\
 \midrule
 Base SA-SSM v2 (NM-Matched)     & 0   & 95.1 & 88.5 & 31.1 \\
-\quad + SM-SSM ($\sigma$-gate)   & +38 & 95.2 & 88.2 & --- \\
 \quad + NC-SSM conditioning      & +26 & 95.3 & 88.0 & 50.8 \\
-\quad + NASG                     & +4  & ---  & ---  & --- \\
-\quad + State masking            & +4  & ---  & ---  & --- \\
-\quad + Teacher-student (SF)     & +2  & ---  & ---  & --- \\
-\quad + LSG                      & +120 & --- & ---  & --- \\
-\quad + SS+Bypass                & +0  & ---  & ---  & --- \\
-\midrule
-\textbf{NC-SSM (full)}          & \textbf{+51} & \textbf{---} & \textbf{---} & \textbf{---} \\
 \bottomrule
 \end{tabular}
-\\[2pt]
-{\footnotesize \textit{Note: --- entries pending experimental evaluation.}}
 \end{table}
 
 
@@ -1189,11 +1066,9 @@ Our analysis reveals two competing effects in selective SSMs:
 At moderate SNR ($> -5$\,dB), effect (1) dominates---SSMs outperform CNNs even without noise training.
 At extreme SNR ($< -5$\,dB), effect (2) dominates---CNNs with fixed $O(\sigma_n^2)$ propagation absorb noise statistics more efficiently through two mechanisms: (i)~fixed kernels $W$ directly absorb noise statistics during noise-augmented training, since each parameter need only handle $O(\sigma_n^2)$ variance; and (ii)~2D spatial convolutions average noise across both frequency and time neighborhoods, providing implicit denoising that 1D temporal SSM processing lacks.
 
-NASG (Section~\ref{sec:nasg}) resolves this gap.
+NC-SSM's selectivity modulation (Section~\ref{sec:smssm}) addresses this gap.
 As shown in Section~\ref{sec:lti_equiv}, LTI-SSM (where $\sigma = 0$) is equivalent to a learned causal convolution with $O(\sigma_n^2)$ variance---matching the CNN bound.
-While the $\sigma$-gate alone leaves residual selectivity ($\sigma \approx 0.05$ at $-15$\,dB), the NASG gate drives the effective selectivity to $\sigma \cdot g \approx 0.001$---a $50\times$ further reduction that eliminates multiplicative coupling entirely.
-
-At $-15$\,dB, the combined selectivity $\sigma \cdot g \approx 0.001$ suppresses cross-term noise by ${\sim}2{,}500\times$, while adaptive state masking reduces effective state dimension to $N_{\text{eff}} \approx 0.2$--$0.3$.
+The $\sigma$-gate drives selectivity toward zero at low SNR, reducing multiplicative coupling and moving noise propagation toward the $O(\sigma_n^2)$ regime.
 
 \subsection{Selectivity Gate Behavior}
 
@@ -1320,10 +1195,6 @@ Remaining directions include:
 (2)~on-device deployment on physical Cortex-M7 hardware (STM32H7), validating theoretical MAC/latency estimates against measured inference time, peak SRAM usage, and power consumption under realistic always-on KWS workloads;
 (3)~extending structural robustness analysis to other audio tasks.
 
-\smallskip\noindent\textbf{SF bridge improvement.}
-The current spectral-flatness bridge (Section~\ref{sec:teacher_student}) measures spectral \emph{shape} rather than energy level, limiting its ability to distinguish different SNR levels of the same noise type.
-An SS-based bridge using the average spectral subtraction gain---which monotonically relates to input SNR---is a natural improvement that could provide more accurate SNR estimation at inference time.
-
 \smallskip\noindent\textbf{Further directions.}
 Explicit SNR-conditioned mixture of experts within the SSM block and the general \emph{selectivity--noise disentanglement} framework applicable to any input-dependent architecture remain promising avenues.
 
@@ -1337,9 +1208,7 @@ Explicit SNR-conditioned mixture of experts within the SSM block and the general
 We presented the first formal analysis of SSM structural noise robustness: input-dependent dynamics ($\Delta$-modulation, $\mathbf{B}$-gating, $\mathbf{C}$-readout) act as implicit noise-adaptive filters, enabling SSMs trained on clean data alone to retain 77.7\% accuracy at 0\,dB---11\,\%p above comparable CNNs.
 We identified multiplicative noise propagation ($O(\sigma_n^6)$ vs.\ $O(\sigma_n^2)$) as the fundamental limitation at low SNR, and proved that LTI-SSM $\equiv$ learned causal convolution.
 
-NC-SSM resolves this through per-sub-band selectivity modulation, Learned Spectral Gate, and optimized spectral subtraction with adaptive bypass.
-Crucially, Noise-Aware Selective Gating (NASG) formally bridges the $O(\sigma_n^6)$-to-$O(\sigma_n^2)$ gap: the effective selectivity $\sigma \cdot g \approx 0.001$ at $-15$\,dB suppresses noise cross-terms by $\sim$2{,}500$\times$, while adaptive state masking reduces the effective state dimensionality to prevent noise accumulation.
-An SNR teacher-student framework enables oracle-supervised training with a lightweight spectral-flatness bridge for deployment.
+NC-SSM resolves this through per-sub-band selectivity modulation, stationarity and spectral-flatness conditioning, Learned Spectral Gate, and optimized spectral subtraction with adaptive bypass.
 NC-SSM achieves \textbf{7{,}443 parameters}---21 fewer than BC-ResNet-1 (7{,}464)---while matching its clean accuracy (95.0\%) with \textbf{1.8$\times$ fewer full-pipeline MACs} (5.6$\times$ for model inference alone) and \textbf{7.1\,ms latency} on Cortex-M7.
 Scaling to NC-SSM-Large further improves clean accuracy to \textbf{95.6\%}---surpassing BC-ResNet-1---while maintaining \textbf{1.6$\times$ fewer MACs} and \textbf{7.9\,ms latency}.
 These results establish that noise robustness and deployment efficiency are complementary properties of noise-conditioned SSMs.
