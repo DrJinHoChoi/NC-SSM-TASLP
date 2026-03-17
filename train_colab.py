@@ -115,6 +115,11 @@ try:
         create_nanomamba_nc_nanose,
         create_nanomamba_nc_nanose_v3,
         create_nanomamba_nc_matched_nanose,
+        # NC-SSM Parameter Scaling Study (12K/15K/20K)
+        create_nanomamba_nc_12k,
+        create_nanomamba_nc_15k,
+        create_nanomamba_nc_20k,
+        profile_model, profile_all_models,
     )
     print("  [OK] nanomamba.py loaded successfully")
 except ImportError:
@@ -3105,6 +3110,10 @@ MODEL_REGISTRY = {
     'NanoMamba-NC-NanoSE': create_nanomamba_nc_nanose,
     'NanoMamba-NC-NanoSE-v3': create_nanomamba_nc_nanose_v3,
     'NanoMamba-NC-Matched-NanoSE': create_nanomamba_nc_matched_nanose,
+    # NC-SSM Parameter Scaling Study
+    'NanoMamba-NC-12K': create_nanomamba_nc_12k,
+    'NanoMamba-NC-15K': create_nanomamba_nc_15k,
+    'NanoMamba-NC-20K': create_nanomamba_nc_20k,
     'DS-CNN-S': lambda n=12: DSCNN_S(n_classes=n),
     'BC-ResNet-1': lambda n=12: BCResNet(n_classes=n, scale=1),
 }
@@ -3417,6 +3426,9 @@ def main():
     parser.add_argument('--lr', type=float, default=3e-3)
     parser.add_argument('--eval_only', action='store_true',
                         help='Only run noise evaluation (load checkpoints)')
+    parser.add_argument('--profile', action='store_true',
+                        help='Profile models: compute MACs, memory, latency, '
+                             'and deployment metrics. No training needed.')
     parser.add_argument('--models', type=str,
                         default='NanoMamba-Tiny',
                         help='Comma-separated model names')
@@ -3511,6 +3523,41 @@ def main():
     print(f"  Epochs: {args.epochs}, LR: {args.lr}, Batch: {args.batch_size}")
     print(f"  Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"{'='*80}")
+
+    # ===== 0. Profile mode (no dataset needed) =====
+    if args.profile:
+        print("\n  === MODEL PROFILING MODE ===\n")
+        model_names = [m.strip() for m in args.models.split(',')]
+
+        if 'all' in model_names:
+            # Profile all primary models with comparison table
+            profile_all_models(verbose=True)
+        else:
+            # Profile specified models
+            for name in model_names:
+                model = create_model(name)
+                model.eval()
+                result = profile_model(model, verbose=True)
+
+            # If multiple models, print comparison
+            if len(model_names) > 1:
+                print(f"\n{'='*75}")
+                print(f"  COMPARISON TABLE")
+                print(f"{'='*75}")
+                print(f"  {'Model':<28} {'Params':>8} {'MACs(M)':>8} "
+                      f"{'Lat(ms)':>8} {'RAM(KB)':>9}")
+                print(f"  {'-'*65}")
+                for name in model_names:
+                    model = create_model(name)
+                    model.eval()
+                    r = profile_model(model, verbose=False)
+                    d = r['deployment']
+                    m = r['memory']
+                    print(f"  {name:<28} {m['params']:>8,} "
+                          f"{d['macs_M']:>8.2f} {d['latency_ms']:>8.2f} "
+                          f"{d['total_ram_kb']:>9.1f}")
+                print(f"{'='*75}\n")
+        sys.exit(0)
 
     # ===== 1. Load dataset =====
     print("\n  Loading Google Speech Commands V2...")
