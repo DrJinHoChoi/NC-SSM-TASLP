@@ -4358,6 +4358,40 @@ def create_nanomamba_nc_20k_ss(n_classes=12):
         use_nano_se=True)
 
 
+def create_nanomamba_nc_15k_ss(n_classes=12):
+    """NC-SSM-15K+SS: NC-SSM-15K with Spectral Subtraction (NanoSE v2).
+
+    Two-stage noise defense:
+      SS (NanoSE v2): spectral domain — removes noise energy via SNR-primary IRM
+      NC-SSM-15K: temporal domain — handles residual noise via LTI fallback
+
+    NC-SSM-15K (15,843) + NanoSE v2 (2,372) = ~18,215 params.
+    """
+    return NanoMamba(
+        n_mels=40, n_classes=n_classes,
+        d_model=32, d_state=9, d_conv=3, expand=1.5,
+        n_layers=2, use_dual_pcen_v2=True,
+        use_ssm_v2=True, use_nc_ssm=True, use_lsg=True,
+        use_nano_se=True)
+
+
+def create_nanomamba_nc_12k_ss(n_classes=12):
+    """NC-SSM-12K+SS: NC-SSM-12K with Spectral Subtraction (NanoSE v2).
+
+    Two-stage noise defense:
+      SS (NanoSE v2): spectral domain — removes noise energy via SNR-primary IRM
+      NC-SSM-12K: temporal domain — handles residual noise via LTI fallback
+
+    NC-SSM-12K (12,683) + NanoSE v2 (2,372) = ~15,055 params.
+    """
+    return NanoMamba(
+        n_mels=40, n_classes=n_classes,
+        d_model=28, d_state=8, d_conv=3, expand=1.5,
+        n_layers=2, use_dual_pcen_v2=True,
+        use_ssm_v2=True, use_nc_ssm=True, use_lsg=True,
+        use_nano_se=True)
+
+
 # ============================================================================
 # Model Profiler: MACs, Memory, Deployment Metrics
 # ============================================================================
