@@ -4339,6 +4339,25 @@ def create_nanomamba_nc_20k(n_classes=12):
         use_ssm_v2=True, use_nc_ssm=True, use_lsg=True)
 
 
+def create_nanomamba_nc_20k_ss(n_classes=12):
+    """NC-SSM-20K+SS: NC-SSM-20K with Spectral Subtraction (NanoSE v2).
+
+    Two-stage noise defense:
+      SS (NanoSE v2): spectral domain — removes noise energy via SNR-primary IRM
+      NC-SSM-20K: temporal domain — handles residual noise via LTI fallback
+
+    NC-SSM-20K (20,044) + NanoSE v2 (2,372) = ~22,416 params.
+    SS reduces input noise by factor ε → coupling becomes O(ε³·σ^6),
+    resolving the scaling paradox at extreme low SNR.
+    """
+    return NanoMamba(
+        n_mels=40, n_classes=n_classes,
+        d_model=37, d_state=10, d_conv=3, expand=1.5,
+        n_layers=2, use_dual_pcen_v2=True,
+        use_ssm_v2=True, use_nc_ssm=True, use_lsg=True,
+        use_nano_se=True)
+
+
 # ============================================================================
 # Model Profiler: MACs, Memory, Deployment Metrics
 # ============================================================================

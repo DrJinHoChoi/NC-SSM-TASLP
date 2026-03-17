@@ -119,6 +119,7 @@ try:
         create_nanomamba_nc_12k,
         create_nanomamba_nc_15k,
         create_nanomamba_nc_20k,
+        create_nanomamba_nc_20k_ss,
         profile_model, profile_all_models,
     )
     print("  [OK] nanomamba.py loaded successfully")
@@ -3114,6 +3115,7 @@ MODEL_REGISTRY = {
     'NanoMamba-NC-12K': create_nanomamba_nc_12k,
     'NanoMamba-NC-15K': create_nanomamba_nc_15k,
     'NanoMamba-NC-20K': create_nanomamba_nc_20k,
+    'NanoMamba-NC-20K-SS': create_nanomamba_nc_20k_ss,
     'DS-CNN-S': lambda n=12: DSCNN_S(n_classes=n),
     'BC-ResNet-1': lambda n=12: BCResNet(n_classes=n, scale=1),
 }

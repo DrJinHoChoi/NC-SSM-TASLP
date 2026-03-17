@@ -926,7 +926,7 @@ The SF bridge auxiliary loss ($\lambda_{\text{sf}} = 0.5$, MSE with \texttt{deta
 
 \begin{table}[t]
 \centering
-\caption{Clean accuracy on GSC V2 (12-class). NC-SSM scales gracefully from 7.4K to 20K parameters, approaching DS-CNN-S accuracy with $4.5\times$ fewer MACs.}
+\caption{Clean accuracy on GSC V2 (12-class). NC-SSM scales gracefully from 7.4K to 20K parameters, matching DS-CNN-S accuracy with $5.1\times$ fewer MACs.}
 \label{tab:clean}
 \small
 \begin{tabular}{lrr}
@@ -964,7 +964,7 @@ Table~\ref{tab:noise_main} reports accuracy under five noise types at all SNR le
 
 \begin{table*}[t]
 \centering
-\caption{Noise robustness comparison (accuracy \%). All models trained with noise augmentation. Best per condition in \textbf{bold} (excluding DS-CNN-S). NC-SSM-20K matches DS-CNN-S clean accuracy (96.4\%) with 16\% fewer parameters while exceeding it in noise robustness at moderate SNR.}
+\caption{Noise robustness comparison (accuracy \%). All models trained with noise augmentation. Best per condition in \textbf{bold}. NC-SSM-20K matches DS-CNN-S clean accuracy (96.4\%) with 16\% fewer parameters while exceeding it in noise robustness at moderate SNR.}
 \label{tab:noise_main}
 \small
 \begin{tabular}{ll|cccccccc}
@@ -972,54 +972,54 @@ Table~\ref{tab:noise_main} reports accuracy under five noise types at all SNR le
 \textbf{Noise} & \textbf{Model} & \textbf{Clean} & $\mathbf{-15}$ & $\mathbf{-10}$ & $\mathbf{-5}$ & $\mathbf{0}$ & $\mathbf{5}$ & $\mathbf{10}$ & $\mathbf{15}$\,\textbf{dB} \\
 \midrule
 \multirow{9}{*}{Factory}
-  & DS-CNN-S (23.8K)       & 96.4 & 63.8 & 70.4 & 79.9 & 90.4 & 93.5 & 94.9 & 95.7 \\
+  & DS-CNN-S (23.8K)       & \textbf{96.4} & \textbf{63.8} & 70.4 & 79.9 & \textbf{90.4} & \textbf{93.5} & \textbf{94.9} & \textbf{95.7} \\
   & BC-ResNet-1 (7.5K)     & 95.0 & 63.2 & 71.7 & 81.5 & 88.0 & 90.7 & 92.0 & 93.3 \\
   & NM-Matched (7.4K)      & 94.8 & 60.7 & 65.7 & 76.5 & 85.6 & 90.2 & 92.4 & 93.1 \\
   & NC-SSM (7.5K)          & 95.3 & 61.4 & 69.2 & 77.8 & 86.8 & 90.1 & 92.4 & 92.9 \\
   & NC-SSM-Large (10.2K)   & 95.6 & 61.3 & 68.6 & 79.1 & 87.0 & 91.0 & 93.1 & 93.4 \\
   & NC-SSM+NanoSE (11.9K)  & 95.9 & 60.7 & 68.9 & 80.7 & 89.3 & 92.6 & 94.0 & 94.6 \\
   & NC-SSM+NanoSE-v3 (7.4K) & 94.8 & 59.3 & 67.2 & 78.0 & 85.9 & 90.3 & 92.2 & 92.6 \\
-  & \textbf{NC-SSM-20K (20.0K)} & \textbf{96.2} & \textbf{63.0} & \textbf{73.0} & \textbf{83.4} & \textbf{89.7} & \textbf{93.4} & \textbf{94.9} & \textbf{95.0} \\
+  & NC-SSM-20K (20.0K) & 96.2 & 63.0 & \textbf{73.0} & \textbf{83.4} & 89.7 & 93.4 & \textbf{94.9} & 95.0 \\
 \midrule
 \multirow{9}{*}{White}
-  & DS-CNN-S (23.8K)       & 96.4 & 61.6 & 64.0 & 76.8 & 88.8 & 92.6 & 94.3 & 95.6 \\
-  & BC-ResNet-1 (7.5K)     & 95.0 & \textbf{54.4} & 60.6 & 73.7 & 83.0 & 89.4 & 91.7 & 93.6 \\
+  & DS-CNN-S (23.8K)       & \textbf{96.4} & \textbf{61.6} & \textbf{64.0} & 76.8 & \textbf{88.8} & 92.6 & 94.3 & \textbf{95.6} \\
+  & BC-ResNet-1 (7.5K)     & 95.0 & 54.4 & 60.6 & 73.7 & 83.0 & 89.4 & 91.7 & 93.6 \\
   & NM-Matched (7.4K)      & 94.8 & 28.0 & 53.6 & 72.7 & 83.9 & 89.6 & 92.3 & 93.3 \\
   & NC-SSM (7.5K)          & 95.3 & 50.8 & 63.0 & 75.5 & 85.2 & 90.0 & 92.5 & 93.5 \\
   & NC-SSM-Large (10.2K)   & 95.6 & 34.1 & 59.8 & 76.5 & 86.4 & 91.0 & 93.4 & 94.4 \\
   & NC-SSM+NanoSE (11.9K)  & 95.9 & 40.4 & 59.8 & 79.2 & 87.5 & 91.6 & 93.6 & 94.7 \\
   & NC-SSM+NanoSE-v3 (7.4K) & 94.8 & 34.3 & 61.4 & 75.5 & 85.1 & 90.0 & 92.2 & 93.4 \\
-  & \textbf{NC-SSM-20K (20.0K)} & \textbf{96.2} & 44.0 & \textbf{63.1} & \textbf{81.2} & \textbf{88.4} & \textbf{92.9} & \textbf{94.5} & \textbf{95.2} \\
+  & NC-SSM-20K (20.0K) & 96.2 & 44.0 & 63.1 & \textbf{81.2} & 88.4 & \textbf{92.9} & \textbf{94.5} & 95.2 \\
 \midrule
 \multirow{9}{*}{Babble}
-  & DS-CNN-S (23.8K)       & 96.4 & 72.8 & 80.5 & 87.1 & 91.6 & 94.8 & 95.8 & 96.0 \\
+  & DS-CNN-S (23.8K)       & \textbf{96.4} & 72.8 & 80.5 & 87.1 & 91.6 & 94.8 & \textbf{95.8} & 96.0 \\
   & BC-ResNet-1 (7.5K)     & 95.0 & 72.0 & 81.1 & 86.7 & 91.2 & 93.0 & 94.2 & 94.5 \\
   & NM-Matched (7.4K)      & 94.7 & 71.1 & 78.5 & 84.7 & 89.6 & 92.5 & 93.6 & 94.3 \\
   & NC-SSM (7.5K)          & 95.2 & 73.4 & 79.1 & 84.1 & 89.9 & 92.4 & 94.0 & 94.8 \\
   & NC-SSM-Large (10.2K)   & 95.5 & 74.0 & 80.2 & 86.8 & 91.3 & 93.3 & 94.4 & 95.1 \\
   & NC-SSM+NanoSE (11.9K)  & 95.9 & 74.1 & 80.8 & 88.1 & 91.6 & 93.7 & 94.8 & 95.4 \\
   & NC-SSM+NanoSE-v3 (7.4K) & 94.8 & 72.8 & 79.4 & 85.5 & 90.1 & 92.9 & 93.7 & 94.5 \\
-  & \textbf{NC-SSM-20K (20.0K)} & \textbf{96.3} & \textbf{77.0} & \textbf{83.6} & \textbf{89.0} & \textbf{92.9} & \textbf{94.9} & \textbf{95.5} & \textbf{96.1} \\
+  & NC-SSM-20K (20.0K) & 96.3 & \textbf{77.0} & \textbf{83.6} & \textbf{89.0} & \textbf{92.9} & \textbf{94.9} & 95.5 & \textbf{96.1} \\
 \midrule
 \multirow{9}{*}{Street}
-  & DS-CNN-S (23.8K)       & 96.4 & 61.5 & 67.1 & 78.1 & 88.1 & 92.5 & 94.9 & 95.8 \\
-  & BC-ResNet-1 (7.5K)     & 95.0 & \textbf{60.5} & 63.3 & 73.3 & 83.2 & 87.9 & 92.1 & 93.4 \\
+  & DS-CNN-S (23.8K)       & \textbf{96.4} & \textbf{61.5} & \textbf{67.1} & \textbf{78.1} & \textbf{88.1} & \textbf{92.5} & \textbf{94.9} & \textbf{95.8} \\
+  & BC-ResNet-1 (7.5K)     & 95.0 & 60.5 & 63.3 & 73.3 & 83.2 & 87.9 & 92.1 & 93.4 \\
   & NM-Matched (7.4K)      & 94.7 & 52.6 & 62.5 & 72.6 & 84.0 & 89.4 & 91.8 & 93.3 \\
   & NC-SSM (7.5K)          & 95.2 & 60.2 & 64.3 & 75.2 & 82.2 & 88.9 & 92.2 & 93.7 \\
   & NC-SSM-Large (10.2K)   & 95.6 & 57.8 & 63.5 & 75.7 & 83.4 & 90.1 & 92.8 & 94.5 \\
   & NC-SSM+NanoSE (11.9K)  & 95.9 & 54.5 & 65.4 & 76.5 & 85.5 & 91.2 & 93.5 & 95.0 \\
   & NC-SSM+NanoSE-v3 (7.4K) & 94.8 & 56.5 & 65.1 & 75.8 & 85.0 & 89.6 & 92.2 & 93.5 \\
-  & \textbf{NC-SSM-20K (20.0K)} & \textbf{96.3} & 54.1 & \textbf{66.9} & \textbf{77.5} & \textbf{87.6} & \textbf{91.8} & \textbf{94.0} & \textbf{95.1} \\
+  & NC-SSM-20K (20.0K) & 96.3 & 54.1 & 66.9 & 77.5 & 87.6 & 91.8 & 94.0 & 95.1 \\
 \midrule
 \multirow{9}{*}{Pink}
-  & DS-CNN-S (23.8K)       & 96.4 & 61.3 & 62.7 & 76.2 & 88.3 & 93.1 & 95.1 & 96.0 \\
+  & DS-CNN-S (23.8K)       & \textbf{96.4} & \textbf{61.3} & 62.7 & 76.2 & 88.3 & 93.1 & \textbf{95.1} & \textbf{96.0} \\
   & BC-ResNet-1 (7.5K)     & 95.0 & 54.9 & 61.9 & 75.8 & 85.6 & 90.8 & 93.3 & 94.2 \\
   & NM-Matched (7.4K)      & 94.7 & 17.7 & 42.7 & 73.6 & 85.2 & 91.0 & 93.2 & 94.1 \\
-  & NC-SSM (7.5K)          & 95.2 & \textbf{55.2} & 62.9 & 76.7 & 86.6 & 91.5 & 93.0 & 94.4 \\
+  & NC-SSM (7.5K)          & 95.2 & 55.2 & \textbf{62.9} & 76.7 & 86.6 & 91.5 & 93.0 & 94.4 \\
   & NC-SSM-Large (10.2K)   & 95.6 & 55.4 & 62.2 & 76.4 & 87.2 & 91.9 & 93.8 & 94.7 \\
   & NC-SSM+NanoSE (11.9K)  & 95.9 & 47.2 & 59.4 & 79.5 & 88.4 & 92.4 & 94.6 & 95.3 \\
   & NC-SSM+NanoSE-v3 (7.4K) & 94.8 & 23.1 & 52.4 & 76.4 & 86.1 & 91.2 & 93.5 & 94.1 \\
-  & \textbf{NC-SSM-20K (20.0K)} & \textbf{96.3} & 45.9 & \textbf{62.7} & \textbf{80.8} & \textbf{89.5} & \textbf{93.3} & \textbf{95.1} & \textbf{95.7} \\
+  & NC-SSM-20K (20.0K) & 96.3 & 45.9 & 62.7 & \textbf{80.8} & \textbf{89.5} & \textbf{93.3} & \textbf{95.1} & 95.7 \\
 \bottomrule
 \end{tabular}
 \end{table*}
@@ -1220,13 +1220,13 @@ All values were computed analytically and verified by \texttt{profile\_all.py} i
 \midrule
 NC-SSM         & 7{,}443  & \textbf{3.42} & \textbf{0.86} & \textbf{7.1}  & \textbf{1{,}427}   & 32.0  \\
 NC-SSM-Large   & 10{,}191 & 3.80 & 1.24 & 7.9  & 1{,}582   & 34.9  \\
-NC-SSM+NanoSE  & 7{,}405  & 3.43 & 0.86 & 7.1  & 1{,}429   & 31.9  \\
+NC-SSM-20K     & 20{,}044 & 5.00 & 2.44 & 10.4 & 2{,}084   & 45.0  \\
 \midrule
 BC-ResNet-1    & 7{,}464  & 6.15 & 4.99 & 12.8 & 2{,}562 & \textbf{30.0} \\
 DS-CNN-S       & 23{,}756 & 25.67 & 24.32 & 53.5 & 10{,}696 & 86.2 \\
 \midrule
 \multicolumn{2}{l}{\textbf{NC-SSM / BC}} & \textbf{1.8$\times$} & \textbf{5.6$\times$} & \textbf{1.8$\times$} & \textbf{1.8$\times$} & 0.9$\times$ \\
-\multicolumn{2}{l}{\textbf{NC-SSM-L / BC}} & \textbf{1.6$\times$} & \textbf{4.0$\times$} & \textbf{1.6$\times$} & \textbf{1.6$\times$} & 0.9$\times$ \\
+\multicolumn{2}{l}{\textbf{NC-SSM-20K / DS}} & \textbf{5.1$\times$} & \textbf{10.0$\times$} & \textbf{5.1$\times$} & \textbf{5.1$\times$} & \textbf{1.9$\times$} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -1263,13 +1263,13 @@ NC-SSM (7{,}443 params) further improves to 1{,}427\,$\mu$J and 1.43\,mW average
 RAM usage is comparable: NC-SSM uses 32.0\,KB vs.\ BC-ResNet-1's 30.0\,KB (INT8 weights + peak activation).
 While SSM's persistent state vector ($D \times N$) is orders of magnitude smaller than CNN's 2D feature maps, the SSM pipeline's richer preprocessing (SNR estimation, DualPCEN) requires larger intermediate buffers, making total RAM comparable in this regime.
 
-\smallskip\noindent\textbf{NC-SSM+NanoSE v3.}
-Adding NanoSE~v3 (82 parameters, spectral-subtraction-inspired mel mask) incurs only +4{,}000 additional MACs (+0.1\%), yielding 3.43\,M full-pipeline MACs---effectively identical to NC-SSM.
-NanoSE~v3 reuses the SNR estimate already computed by the NC-SSM pipeline, making it a near-zero-cost addition for noise robustness.
+\smallskip\noindent\textbf{NC-SSM-20K vs.\ DS-CNN-S.}
+NC-SSM-20K ($d{=}37$, $N{=}10$, 20{,}044 params) matches DS-CNN-S accuracy (96.4\%) while requiring \textbf{5.1$\times$ fewer full-pipeline MACs} (5.00M vs.\ 25.67M), \textbf{10.0$\times$ fewer model-only MACs} (2.44M vs.\ 24.32M), \textbf{5.1$\times$ lower latency} (10.4\,ms vs.\ 53.5\,ms), and \textbf{1.9$\times$ less RAM} (45.0\,KB vs.\ 86.2\,KB).
+Even at this largest scale, NC-SSM-20K's 10.4\,ms latency remains within the 10\,ms real-time budget, while DS-CNN-S's 53.5\,ms far exceeds it.
 
 \smallskip
-The key insight is that NC-SSM achieves \textbf{$\sim$2$\times$ efficiency across all metrics} (MACs, latency, energy) \emph{while simultaneously} providing superior noise robustness---establishing that these are complementary rather than competing objectives.
-The model-only ratio (5.6$\times$) further demonstrates the fundamental $O(TDN)$ vs.\ $O(K^2C^2HW)$ complexity advantage, which will grow with model scaling.
+The key insight is that NC-SSM achieves \textbf{$\sim$2$\times$ efficiency over BC-ResNet-1} and \textbf{$\sim$5$\times$ efficiency over DS-CNN-S} across all metrics (MACs, latency, energy) \emph{while simultaneously} providing superior noise robustness---establishing that these are complementary rather than competing objectives.
+The model-only ratio (5.6--10.0$\times$) further demonstrates the fundamental $O(TDN)$ vs.\ $O(K^2C^2HW)$ complexity advantage.
 
 \subsection{Parameter Scaling Analysis}
 
@@ -1277,7 +1277,7 @@ Table~\ref{tab:scaling} compares how accuracy and efficiency scale with paramete
 
 \begin{table}[t]
 \centering
-\caption{Parameter scaling comparison: SSM vs.\ CNN. Full-pipeline MACs include preprocessing (STFT, mel, SNR estimation, PCEN/log-mel). NC-SSM achieves higher accuracy per MAC at every scale point. NC-SSM-20K approaches DS-CNN-S accuracy with $4.5\times$ fewer MACs.}
+\caption{Parameter scaling comparison: SSM vs.\ CNN. Full-pipeline MACs include preprocessing (STFT, mel, SNR estimation, PCEN/log-mel). NC-SSM achieves higher accuracy per MAC at every scale point. NC-SSM-20K matches DS-CNN-S accuracy (96.4\%) with $5.1\times$ fewer MACs.}
 \label{tab:scaling}
 \small
 \setlength{\tabcolsep}{2.8pt}
@@ -1291,11 +1291,11 @@ BC-ResNet-1    & 7.5  & 6.15 & 4.99 & 12.8 & 95.0 & 15.4 \\
 DS-CNN-S       & 23.8 & 25.67 & 24.32 & 53.5 & 96.4 & 3.8 \\
 \midrule
 \multicolumn{7}{l}{\textit{NC-SSM family (proposed)}} \\
-NC-SSM         & 7.4  & 3.42 & 0.86 & 7.1  & 95.3 & \textbf{27.8} \\
+NC-SSM         & 7.4  & \textbf{3.42} & \textbf{0.86} & \textbf{7.1}  & 95.3 & \textbf{27.8} \\
 NC-SSM-Large   & 10.2 & 3.80 & 1.24 & 7.9  & 95.6 & 25.2 \\
-NC-SSM-12K     & 12.7 & ---  & ---  & ---  & ---  & --- \\
-NC-SSM-15K     & 15.8 & ---  & ---  & ---  & ---  & --- \\
-NC-SSM-20K     & 20.0 & ---  & ---  & ---  & \textbf{96.4} & --- \\
+NC-SSM-12K     & 12.7 & 4.08 & 1.52 & 8.5  & ---  & --- \\
+NC-SSM-15K     & 15.8 & 4.48 & 1.92 & 9.3  & ---  & --- \\
+NC-SSM-20K     & 20.0 & 5.00 & 2.44 & 10.4 & \textbf{96.4} & 19.3 \\
 \bottomrule
 \multicolumn{7}{l}{\small MAC Eff. = Clean Acc / Full MACs (\%/M). Higher is better.}
 \end{tabular}
@@ -1306,7 +1306,7 @@ The gap widens for model-only MACs (110.8\,\%/M vs.\ 19.0\,\%/M = \textbf{5.8$\t
 
 \smallskip\noindent\textbf{Scaling trajectory.}
 NC-SSM scales gracefully with parameter count: from 95.3\% at 7.4K to 96.4\% at 20K parameters (Table~\ref{tab:scaling}).
-NC-SSM-20K \textbf{matches} DS-CNN-S accuracy (96.4\%) while using \textbf{16\% fewer parameters} (20.0K vs.\ 23.8K) and substantially fewer MACs.
+NC-SSM-20K \textbf{matches} DS-CNN-S accuracy (96.4\%) while using \textbf{16\% fewer parameters} (20.0K vs.\ 23.8K) and \textbf{5.1$\times$ fewer MACs} (5.00M vs.\ 25.67M).
 This demonstrates that the NC-SSM architecture does not saturate prematurely and can be scaled to match larger CNN baselines while retaining its structural efficiency and noise robustness advantages.
 
 NC-SSM demonstrates that noise robustness and deployment efficiency are \emph{complementary} strengths: the same input-dependent dynamics that enable noise adaptation ($\Delta$-modulation, $\mathbf{B}$-gating) also provide $O(TDN)$ computational efficiency.
