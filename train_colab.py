@@ -790,8 +790,74 @@ def evaluate(model, val_loader, device):
 # Noise Generation (Audio-Domain)
 # ============================================================================
 
+
+# --- DEMAND dataset (real recorded noise) ---
+_demand_cache = {}
+
+def _load_demand_noise(demand_type, length, sr=16000):
+    """Load real recorded noise from DEMAND dataset.
+
+    DEMAND types: DKITCHEN, DLIVING, DWASHING, NFIELD, NPARK, NRIVER,
+                  OHALLWAY, OMEETING, OOFFICE, PCAFE, PRESTO, PSTATION,
+                  SCAFE, SPSQUARE, STRAFFIC, TBUS, TCAR, TMETRO
+
+    Mapped short names: demand_kitchen, demand_cafe, demand_traffic,
+                        demand_living, demand_office, demand_bus
+    """
+    demand_map = {
+        'demand_kitchen': 'DKITCHEN', 'demand_living': 'DLIVING',
+        'demand_washing': 'DWASHING', 'demand_field': 'NFIELD',
+        'demand_park': 'NPARK', 'demand_river': 'NRIVER',
+        'demand_hallway': 'OHALLWAY', 'demand_meeting': 'OMEETING',
+        'demand_office': 'OOFFICE', 'demand_cafe': 'PCAFETERIA',
+        'demand_resto': 'PRESTO', 'demand_station': 'PSTATION',
+        'demand_square': 'SPSQUARE', 'demand_traffic': 'STRAFFIC',
+        'demand_bus': 'TBUS', 'demand_car': 'TCAR', 'demand_metro': 'TMETRO',
+    }
+
+    folder_name = demand_map.get(demand_type, demand_type.upper())
+    demand_dirs = [
+        Path('/content/DEMAND'),
+        Path('/content/drive/MyDrive/DEMAND'),
+        Path('DEMAND'),
+    ]
+
+    wav_path = None
+    for d in demand_dirs:
+        p = d / folder_name / 'ch01.wav'
+        if p.exists():
+            wav_path = p
+            break
+
+    if wav_path is None:
+        print(f"    ⚠ DEMAND {folder_name} not found, falling back to white noise")
+        noise = torch.randn(length)
+        return noise / (noise.abs().max() + 1e-8) * 0.7
+
+    # Cache the full recording
+    if str(wav_path) not in _demand_cache:
+        import torchaudio
+        waveform, orig_sr = torchaudio.load(str(wav_path))
+        if orig_sr != sr:
+            waveform = torchaudio.functional.resample(waveform, orig_sr, sr)
+        _demand_cache[str(wav_path)] = waveform[0]  # mono ch01
+
+    full_noise = _demand_cache[str(wav_path)]
+
+    # Random crop
+    if len(full_noise) <= length:
+        noise = full_noise.repeat(length // len(full_noise) + 1)[:length]
+    else:
+        start = np.random.randint(0, len(full_noise) - length)
+        noise = full_noise[start:start + length]
+
+    return noise / (noise.abs().max() + 1e-8) * 0.7
+
+
 def generate_noise_signal(noise_type, length, sr=16000, dataset_audios=None):
-    if noise_type == 'factory':
+    if noise_type.startswith('demand_'):
+        return _load_demand_noise(noise_type, length, sr)
+    elif noise_type == 'factory':
         return _generate_factory_noise(length, sr)
     elif noise_type == 'white':
         noise = torch.randn(length)
