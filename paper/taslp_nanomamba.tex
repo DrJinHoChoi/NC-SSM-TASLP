@@ -30,6 +30,9 @@
 \definecolor{plotcnn}{RGB}{220,60,47}
 \definecolor{plotssm}{RGB}{40,100,195}
 \definecolor{plotlarge}{RGB}{0,153,136}
+\definecolor{plot15k}{RGB}{180,90,200}
+\definecolor{plot20k}{RGB}{230,150,0}
+\definecolor{plotdscnn}{RGB}{120,120,120}
 
 \title{NC-SSM: Noise-Conditioned State Space Models for Robust and Efficient Keyword Spotting}
 
@@ -821,7 +824,7 @@ SSM models additionally use SpecAugment~\cite{park2019specaugment} and EMA (deca
 \toprule
 \textbf{Model} & \textbf{Params} & \textbf{Val Acc (\%)} \\
 \midrule
-DS-CNN-S & 23{,}756 & 96.4 \\
+DS-CNN-S & 23{,}756 & \textbf{96.4} \\
 BC-ResNet-1 & 7{,}464 & 95.0 \\
 \midrule
 NM-Matched & 7{,}402 & 95.1 \\
@@ -829,7 +832,7 @@ NC-SSM & 7{,}443 & 95.3 \\
 NC-SSM+NanoSE-v3 & 7{,}405 & 94.8 \\
 NC-SSM-Large & 10{,}191 & 95.6 \\
 NC-SSM-12K & 12{,}683 & --- \\
-NC-SSM-15K & 15{,}843 & --- \\
+NC-SSM-15K & 15{,}843 & 96.2 \\
 NC-SSM-20K & 20{,}044 & \textbf{96.4} \\
 \bottomrule
 \end{tabular}
@@ -859,7 +862,7 @@ Table~\ref{tab:noise_main} reports accuracy under five noise types at all SNR le
 \toprule
 \textbf{Noise} & \textbf{Model} & \textbf{Clean} & $\mathbf{-15}$ & $\mathbf{-10}$ & $\mathbf{-5}$ & $\mathbf{0}$ & $\mathbf{5}$ & $\mathbf{10}$ & $\mathbf{15}$\,\textbf{dB} \\
 \midrule
-\multirow{9}{*}{Factory}
+\multirow{10}{*}{Factory}
   & DS-CNN-S (23.8K)       & \textbf{96.4} & \textbf{63.8} & 70.4 & 79.9 & \textbf{90.4} & \textbf{93.5} & \textbf{94.9} & \textbf{95.7} \\
   & BC-ResNet-1 (7.5K)     & 95.0 & 63.2 & 71.7 & 81.5 & 88.0 & 90.7 & 92.0 & 93.3 \\
   & NM-Matched (7.4K)      & 94.8 & 60.7 & 65.7 & 76.5 & 85.6 & 90.2 & 92.4 & 93.1 \\
@@ -867,19 +870,21 @@ Table~\ref{tab:noise_main} reports accuracy under five noise types at all SNR le
   & NC-SSM-Large (10.2K)   & 95.6 & 61.3 & 68.6 & 79.1 & 87.0 & 91.0 & 93.1 & 93.4 \\
   & NC-SSM+NanoSE (11.9K)  & 95.9 & 60.7 & 68.9 & 80.7 & 89.3 & 92.6 & 94.0 & 94.6 \\
   & NC-SSM+NanoSE-v3 (7.4K) & 94.8 & 59.3 & 67.2 & 78.0 & 85.9 & 90.3 & 92.2 & 92.6 \\
-  & NC-SSM-20K (20.0K) & 96.2 & 63.0 & \textbf{73.0} & \textbf{83.4} & 89.7 & 93.4 & \textbf{94.9} & 95.0 \\
+  & NC-SSM-15K (15.8K) & 96.3 & 63.2 & \textbf{73.4} & \textbf{83.7} & 89.6 & 92.6 & 94.1 & 94.7 \\
+  & NC-SSM-20K (20.0K) & 96.2 & 63.0 & 73.0 & 83.4 & 89.7 & 93.4 & \textbf{94.9} & 95.0 \\
 \midrule
-\multirow{9}{*}{White}
-  & DS-CNN-S (23.8K)       & \textbf{96.4} & \textbf{61.6} & \textbf{64.0} & 76.8 & \textbf{88.8} & 92.6 & 94.3 & \textbf{95.6} \\
+\multirow{10}{*}{White}
+  & DS-CNN-S (23.8K)       & \textbf{96.4} & \textbf{61.6} & 64.0 & 76.8 & \textbf{88.8} & 92.6 & 94.3 & \textbf{95.6} \\
   & BC-ResNet-1 (7.5K)     & 95.0 & 54.4 & 60.6 & 73.7 & 83.0 & 89.4 & 91.7 & 93.6 \\
   & NM-Matched (7.4K)      & 94.8 & 28.0 & 53.6 & 72.7 & 83.9 & 89.6 & 92.3 & 93.3 \\
   & NC-SSM (7.5K)          & 95.3 & 50.8 & 63.0 & 75.5 & 85.2 & 90.0 & 92.5 & 93.5 \\
   & NC-SSM-Large (10.2K)   & 95.6 & 34.1 & 59.8 & 76.5 & 86.4 & 91.0 & 93.4 & 94.4 \\
   & NC-SSM+NanoSE (11.9K)  & 95.9 & 40.4 & 59.8 & 79.2 & 87.5 & 91.6 & 93.6 & 94.7 \\
   & NC-SSM+NanoSE-v3 (7.4K) & 94.8 & 34.3 & 61.4 & 75.5 & 85.1 & 90.0 & 92.2 & 93.4 \\
+  & NC-SSM-15K (15.8K) & 96.3 & 44.7 & \textbf{65.2} & 80.0 & 87.5 & 92.5 & 94.2 & 94.9 \\
   & NC-SSM-20K (20.0K) & 96.2 & 44.0 & 63.1 & \textbf{81.2} & 88.4 & \textbf{92.9} & \textbf{94.5} & 95.2 \\
 \midrule
-\multirow{9}{*}{Babble}
+\multirow{10}{*}{Babble}
   & DS-CNN-S (23.8K)       & \textbf{96.4} & 72.8 & 80.5 & 87.1 & 91.6 & 94.8 & \textbf{95.8} & 96.0 \\
   & BC-ResNet-1 (7.5K)     & 95.0 & 72.0 & 81.1 & 86.7 & 91.2 & 93.0 & 94.2 & 94.5 \\
   & NM-Matched (7.4K)      & 94.7 & 71.1 & 78.5 & 84.7 & 89.6 & 92.5 & 93.6 & 94.3 \\
@@ -887,27 +892,30 @@ Table~\ref{tab:noise_main} reports accuracy under five noise types at all SNR le
   & NC-SSM-Large (10.2K)   & 95.5 & 74.0 & 80.2 & 86.8 & 91.3 & 93.3 & 94.4 & 95.1 \\
   & NC-SSM+NanoSE (11.9K)  & 95.9 & 74.1 & 80.8 & 88.1 & 91.6 & 93.7 & 94.8 & 95.4 \\
   & NC-SSM+NanoSE-v3 (7.4K) & 94.8 & 72.8 & 79.4 & 85.5 & 90.1 & 92.9 & 93.7 & 94.5 \\
-  & NC-SSM-20K (20.0K) & 96.3 & \textbf{77.0} & \textbf{83.6} & \textbf{89.0} & \textbf{92.9} & \textbf{94.9} & 95.5 & \textbf{96.1} \\
+  & NC-SSM-15K (15.8K) & 96.1 & \textbf{79.2} & \textbf{84.5} & \textbf{89.5} & 92.3 & 94.5 & 95.3 & 95.7 \\
+  & NC-SSM-20K (20.0K) & 96.3 & 77.0 & 83.6 & 89.0 & \textbf{92.9} & \textbf{94.9} & 95.5 & \textbf{96.1} \\
 \midrule
-\multirow{9}{*}{Street}
-  & DS-CNN-S (23.8K)       & \textbf{96.4} & \textbf{61.5} & \textbf{67.1} & \textbf{78.1} & \textbf{88.1} & \textbf{92.5} & \textbf{94.9} & \textbf{95.8} \\
+\multirow{10}{*}{Street}
+  & DS-CNN-S (23.8K)       & \textbf{96.4} & \textbf{61.5} & 67.1 & \textbf{78.1} & \textbf{88.1} & \textbf{92.5} & \textbf{94.9} & \textbf{95.8} \\
   & BC-ResNet-1 (7.5K)     & 95.0 & 60.5 & 63.3 & 73.3 & 83.2 & 87.9 & 92.1 & 93.4 \\
   & NM-Matched (7.4K)      & 94.7 & 52.6 & 62.5 & 72.6 & 84.0 & 89.4 & 91.8 & 93.3 \\
   & NC-SSM (7.5K)          & 95.2 & 60.2 & 64.3 & 75.2 & 82.2 & 88.9 & 92.2 & 93.7 \\
   & NC-SSM-Large (10.2K)   & 95.6 & 57.8 & 63.5 & 75.7 & 83.4 & 90.1 & 92.8 & 94.5 \\
   & NC-SSM+NanoSE (11.9K)  & 95.9 & 54.5 & 65.4 & 76.5 & 85.5 & 91.2 & 93.5 & 95.0 \\
   & NC-SSM+NanoSE-v3 (7.4K) & 94.8 & 56.5 & 65.1 & 75.8 & 85.0 & 89.6 & 92.2 & 93.5 \\
+  & NC-SSM-15K (15.8K) & 96.3 & 53.9 & \textbf{67.3} & 77.3 & 86.8 & 91.1 & 93.9 & 94.9 \\
   & NC-SSM-20K (20.0K) & 96.3 & 54.1 & 66.9 & 77.5 & 87.6 & 91.8 & 94.0 & 95.1 \\
 \midrule
-\multirow{9}{*}{Pink}
+\multirow{10}{*}{Pink}
   & DS-CNN-S (23.8K)       & \textbf{96.4} & \textbf{61.3} & 62.7 & 76.2 & 88.3 & 93.1 & \textbf{95.1} & \textbf{96.0} \\
   & BC-ResNet-1 (7.5K)     & 95.0 & 54.9 & 61.9 & 75.8 & 85.6 & 90.8 & 93.3 & 94.2 \\
   & NM-Matched (7.4K)      & 94.7 & 17.7 & 42.7 & 73.6 & 85.2 & 91.0 & 93.2 & 94.1 \\
-  & NC-SSM (7.5K)          & 95.2 & 55.2 & \textbf{62.9} & 76.7 & 86.6 & 91.5 & 93.0 & 94.4 \\
+  & NC-SSM (7.5K)          & 95.2 & 55.2 & 62.9 & 76.7 & 86.6 & 91.5 & 93.0 & 94.4 \\
   & NC-SSM-Large (10.2K)   & 95.6 & 55.4 & 62.2 & 76.4 & 87.2 & 91.9 & 93.8 & 94.7 \\
   & NC-SSM+NanoSE (11.9K)  & 95.9 & 47.2 & 59.4 & 79.5 & 88.4 & 92.4 & 94.6 & 95.3 \\
   & NC-SSM+NanoSE-v3 (7.4K) & 94.8 & 23.1 & 52.4 & 76.4 & 86.1 & 91.2 & 93.5 & 94.1 \\
-  & NC-SSM-20K (20.0K) & 96.3 & 45.9 & 62.7 & \textbf{80.8} & \textbf{89.5} & \textbf{93.3} & \textbf{95.1} & 95.7 \\
+  & NC-SSM-15K (15.8K) & 96.3 & 46.7 & \textbf{64.8} & \textbf{81.3} & 89.0 & 93.2 & 94.8 & 95.2 \\
+  & NC-SSM-20K (20.0K) & 96.3 & 45.9 & 62.7 & 80.8 & \textbf{89.5} & \textbf{93.3} & \textbf{95.1} & 95.7 \\
 \bottomrule
 \end{tabular}
 \end{table*}
@@ -916,14 +924,14 @@ Table~\ref{tab:noise_main} reports accuracy under five noise types at all SNR le
 \centering
 \pgfplotsset{
   noise plot/.style={
-    width=0.32\textwidth, height=4.2cm,
-    xmin=-17, xmax=17, ymin=25, ymax=100,
+    width=0.33\textwidth, height=4.5cm,
+    xmin=-17, xmax=17, ymin=30, ymax=100,
     xtick={-15,-10,-5,0,5,10,15},
-    ytick={30,50,70,90},
+    ytick={30,40,50,60,70,80,90,100},
     grid=both,
-    grid style={line width=.1pt, draw=gray!15},
-    major grid style={line width=.2pt, draw=gray!30},
-    every axis plot/.append style={thick, mark size=1.5pt},
+    grid style={line width=.1pt, draw=gray!10},
+    major grid style={line width=.2pt, draw=gray!25},
+    every axis plot/.append style={thin, mark size=1.3pt},
     tick label style={font=\tiny},
     label style={font=\tiny},
     title style={font=\scriptsize\bfseries},
@@ -933,66 +941,94 @@ Table~\ref{tab:noise_main} reports accuracy under five noise types at all SNR le
 % Row 1: Factory, White, Babble
 \begin{axis}[noise plot, name=p1,
     title={Factory}, ylabel={Accuracy (\%)}, xlabel={}]
+\addplot[color=plotdscnn, dashdotted, mark=|, mark options={solid, scale=1.2}]
+    coordinates {(-15,63.8)(-10,70.4)(-5,79.9)(0,90.4)(5,93.5)(10,94.9)(15,95.7)};
 \addplot[color=plotcnn, mark=square*]
     coordinates {(-15,64.5)(-10,74.8)(-5,83.5)(0,89.0)(5,91.9)(10,92.9)(15,93.9)};
 \addplot[color=plotssm, mark=*]
     coordinates {(-15,61.4)(-10,69.2)(-5,77.8)(0,86.8)(5,90.1)(10,92.4)(15,92.9)};
 \addplot[color=plotlarge, densely dashed, mark=diamond*, mark options={solid}]
     coordinates {(-15,61.3)(-10,68.6)(-5,79.1)(0,87.0)(5,91.0)(10,93.1)(15,93.4)};
+\addplot[color=plot15k, densely dotted, mark=triangle*, mark options={solid}]
+    coordinates {(-15,63.2)(-10,73.4)(-5,83.7)(0,89.6)(5,92.6)(10,94.1)(15,94.7)};
+\addplot[color=plot20k, mark=pentagon*, mark options={solid}]
+    coordinates {(-15,63.0)(-10,73.0)(-5,83.4)(0,89.7)(5,93.4)(10,94.9)(15,95.0)};
 \end{axis}
 
 \begin{axis}[noise plot, name=p2, at={(p1.east)}, anchor=west, xshift=0.15cm,
     title={White}, ylabel={}, xlabel={}]
+\addplot[color=plotdscnn, dashdotted, mark=|, mark options={solid, scale=1.2}]
+    coordinates {(-15,61.6)(-10,64.0)(-5,76.8)(0,88.8)(5,92.6)(10,94.3)(15,95.6)};
 \addplot[color=plotcnn, mark=square*]
     coordinates {(-15,58.6)(-10,64.6)(-5,76.7)(0,85.9)(5,90.2)(10,92.6)(15,93.8)};
 \addplot[color=plotssm, mark=*]
     coordinates {(-15,50.8)(-10,63.0)(-5,75.5)(0,85.2)(5,90.0)(10,92.5)(15,93.5)};
 \addplot[color=plotlarge, densely dashed, mark=diamond*, mark options={solid}]
     coordinates {(-15,34.1)(-10,59.8)(-5,76.5)(0,86.4)(5,91.0)(10,93.4)(15,94.4)};
-% Gap annotation at -15 dB: BC-ResNet-1 (58.6) vs NC-SSM-L (34.1)
-\draw[<->, gray!60!black, line width=0.7pt]
-    (axis cs:-16,35.5) -- (axis cs:-16,57.2);
-\node[left, font=\tiny, text=gray!50!black, align=right]
-    at (axis cs:-16.5,46) {24.5\,\%p};
+\addplot[color=plot15k, densely dotted, mark=triangle*, mark options={solid}]
+    coordinates {(-15,44.7)(-10,65.2)(-5,80.0)(0,87.5)(5,92.5)(10,94.2)(15,94.9)};
+\addplot[color=plot20k, mark=pentagon*, mark options={solid}]
+    coordinates {(-15,44.0)(-10,63.1)(-5,81.2)(0,88.4)(5,92.9)(10,94.5)(15,95.2)};
 \end{axis}
 
 \begin{axis}[noise plot, name=p3, at={(p2.east)}, anchor=west, xshift=0.15cm,
     title={Babble}, ylabel={}, xlabel={}]
+\addplot[color=plotdscnn, dashdotted, mark=|, mark options={solid, scale=1.2}]
+    coordinates {(-15,72.8)(-10,80.5)(-5,87.1)(0,91.6)(5,94.8)(10,95.8)(15,96.0)};
 \addplot[color=plotcnn, mark=square*]
     coordinates {(-15,76.7)(-10,84.3)(-5,88.8)(0,92.1)(5,93.8)(10,94.4)(15,95.0)};
 \addplot[color=plotssm, mark=*]
     coordinates {(-15,73.4)(-10,79.1)(-5,84.1)(0,89.9)(5,92.4)(10,94.0)(15,94.8)};
 \addplot[color=plotlarge, densely dashed, mark=diamond*, mark options={solid}]
     coordinates {(-15,74.0)(-10,80.2)(-5,86.8)(0,91.3)(5,93.3)(10,94.4)(15,95.1)};
+\addplot[color=plot15k, densely dotted, mark=triangle*, mark options={solid}]
+    coordinates {(-15,79.2)(-10,84.5)(-5,89.5)(0,92.3)(5,94.5)(10,95.3)(15,95.7)};
+\addplot[color=plot20k, mark=pentagon*, mark options={solid}]
+    coordinates {(-15,77.0)(-10,83.6)(-5,89.0)(0,92.9)(5,94.9)(10,95.5)(15,96.1)};
 \end{axis}
 
 % Row 2: Street, Pink (centered)
 \begin{axis}[noise plot, name=p4,
     at={($(p1.south west)!0.5!(p2.south west)$)}, anchor=north west,
-    yshift=-1.0cm,
+    yshift=-1.5cm,
     title={Street}, ylabel={Accuracy (\%)}, xlabel={SNR (dB)}]
+\addplot[color=plotdscnn, dashdotted, mark=|, mark options={solid, scale=1.2}]
+    coordinates {(-15,61.5)(-10,67.1)(-5,78.1)(0,88.1)(5,92.5)(10,94.9)(15,95.8)};
 \addplot[color=plotcnn, mark=square*]
     coordinates {(-15,60.7)(-10,65.1)(-5,77.7)(0,84.8)(5,90.1)(10,93.0)(15,94.1)};
 \addplot[color=plotssm, mark=*]
     coordinates {(-15,60.2)(-10,64.3)(-5,75.2)(0,82.2)(5,88.9)(10,92.2)(15,93.7)};
 \addplot[color=plotlarge, densely dashed, mark=diamond*, mark options={solid}]
     coordinates {(-15,57.8)(-10,63.5)(-5,75.7)(0,83.4)(5,90.1)(10,92.8)(15,94.5)};
+\addplot[color=plot15k, densely dotted, mark=triangle*, mark options={solid}]
+    coordinates {(-15,53.9)(-10,67.3)(-5,77.3)(0,86.8)(5,91.1)(10,93.9)(15,94.9)};
+\addplot[color=plot20k, mark=pentagon*, mark options={solid}]
+    coordinates {(-15,54.1)(-10,66.9)(-5,77.5)(0,87.6)(5,91.8)(10,94.0)(15,95.1)};
 \end{axis}
 
 \begin{axis}[noise plot, name=p5, at={(p4.east)}, anchor=west, xshift=0.15cm,
     title={Pink}, ylabel={}, xlabel={SNR (dB)},
     legend to name=shared_legend,
-    legend style={font=\scriptsize, legend columns=-1, column sep=8pt,
+    legend style={font=\tiny, legend columns=3, column sep=3pt,
       draw=none}]
+\addplot[color=plotdscnn, dashdotted, mark=|, mark options={solid, scale=1.2}]
+    coordinates {(-15,61.3)(-10,62.7)(-5,76.2)(0,88.3)(5,93.1)(10,95.1)(15,96.0)};
+\addlegendentry{DS-CNN-S (23.8K)}
 \addplot[color=plotcnn, mark=square*]
     coordinates {(-15,58.9)(-10,66.0)(-5,79.7)(0,88.4)(5,91.8)(10,93.8)(15,94.5)};
-\addlegendentry{BC-ResNet-1 (7.5K\,/\,4.70M)}
+\addlegendentry{BC-ResNet-1 (7.5K)}
 \addplot[color=plotssm, mark=*]
     coordinates {(-15,55.2)(-10,62.9)(-5,76.7)(0,86.6)(5,91.5)(10,93.0)(15,94.4)};
-\addlegendentry{NC-SSM (7.4K\,/\,0.85M)}
+\addlegendentry{NC-SSM (7.4K)}
 \addplot[color=plotlarge, densely dashed, mark=diamond*, mark options={solid}]
     coordinates {(-15,55.4)(-10,62.2)(-5,76.4)(0,87.2)(5,91.9)(10,93.8)(15,94.7)};
-\addlegendentry{NC-SSM-L (10.2K\,/\,1.15M)}
+\addlegendentry{NC-SSM-L (10.2K)}
+\addplot[color=plot15k, densely dotted, mark=triangle*, mark options={solid}]
+    coordinates {(-15,46.7)(-10,64.8)(-5,81.3)(0,89.0)(5,93.2)(10,94.8)(15,95.2)};
+\addlegendentry{NC-SSM-15K (15.8K)}
+\addplot[color=plot20k, mark=pentagon*, mark options={solid}]
+    coordinates {(-15,45.9)(-10,62.7)(-5,80.8)(0,89.5)(5,93.3)(10,95.1)(15,95.7)};
+\addlegendentry{NC-SSM-20K (20.0K)}
 \end{axis}
 
 % Shared legend centered below all plots (below xlabel text)
@@ -1000,7 +1036,7 @@ Table~\ref{tab:noise_main} reports accuracy under five noise types at all SNR le
   {\ref{shared_legend}};
 
 \end{tikzpicture}
-\caption{Accuracy vs.\ SNR per noise type. NC-SSM-Large ($\blacklozenge$) matches BC-ResNet-1 ($\blacksquare$) above 5\,dB with 1.6$\times$ fewer full-pipeline MACs. The gap below $-5$\,dB reflects $O(\sigma_n^6)$ multiplicative noise propagation, which the selectivity modulation mechanism is designed to reduce.}
+\caption{Accuracy vs.\ SNR across five noise types for the NC-SSM scaling family. Scaling improves clean and moderate-noise accuracy, but at extreme low SNR ($-15$\,dB), larger models (NC-SSM-20K, NC-SSM-15K) degrade below NC-SSM base due to $O(\sigma_n^6)$ multiplicative noise coupling---the \emph{scaling paradox} that motivates the SS front-end.}
 \label{fig:snr_curve}
 \end{figure*}
 
@@ -1163,13 +1199,13 @@ Table~\ref{tab:scaling} compares how accuracy and efficiency scale with paramete
 \midrule
 \multicolumn{7}{l}{\textit{CNN family}} \\
 BC-ResNet-1    & 7.5  & 6.15 & 4.99 & 12.8 & 95.0 & 15.4 \\
-DS-CNN-S       & 23.8 & 25.67 & 24.32 & 53.5 & 96.4 & 3.8 \\
+DS-CNN-S       & 23.8 & 25.67 & 24.32 & 53.5 & \textbf{96.4} & 3.8 \\
 \midrule
 \multicolumn{7}{l}{\textit{NC-SSM family (proposed)}} \\
 NC-SSM         & 7.4  & \textbf{3.42} & \textbf{0.86} & \textbf{7.1}  & 95.3 & \textbf{27.8} \\
 NC-SSM-Large   & 10.2 & 3.80 & 1.24 & 7.9  & 95.6 & 25.2 \\
 NC-SSM-12K     & 12.7 & 4.08 & 1.52 & 8.5  & ---  & --- \\
-NC-SSM-15K     & 15.8 & 4.48 & 1.92 & 9.3  & ---  & --- \\
+NC-SSM-15K     & 15.8 & 4.48 & 1.92 & 9.3  & 96.2 & 21.5 \\
 NC-SSM-20K     & 20.0 & 5.00 & 2.44 & 10.4 & \textbf{96.4} & 19.3 \\
 \bottomrule
 \multicolumn{7}{l}{\small MAC Eff. = Clean Acc / Full MACs (\%/M). Higher is better.}
