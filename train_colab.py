@@ -3366,6 +3366,15 @@ def train_model(model, model_name, train_dataset, val_dataset,
                 'noise_aug': noise_aug,
                 'use_ema': use_ema,
             }, model_dir / 'best.pt')
+            # Auto-backup to Google Drive if available
+            try:
+                drive_backup = Path('/content/drive/MyDrive/NC-SSM-checkpoints') / model_name.replace(' ', '_')
+                drive_backup.mkdir(parents=True, exist_ok=True)
+                import shutil
+                shutil.copy2(model_dir / 'best.pt', drive_backup / 'best.pt')
+                print(f"    💾 Drive backup: {drive_backup / 'best.pt'}", flush=True)
+            except Exception:
+                pass  # Not on Colab or Drive not mounted
 
         # Restore original weights for continued training
         if ema is not None:
