@@ -3418,6 +3418,7 @@ MODEL_REGISTRY = {
     'SAGN': create_sagn,
     # NC-SSM: Noise-Conditioned SM-SSM (per-sub-band selectivity + LSG)
     'NanoMamba-NC-Matched': create_nanomamba_nc_matched,
+    'NC-SSM': create_nanomamba_nc_matched,  # paper name alias
     'NanoMamba-NC-Large': create_nanomamba_nc_large,
     'NanoMamba-NC-Large-PD': lambda n=12: create_nanomamba_nc_large(n, use_param_decouple=True),
     'NanoMamba-NC-Large-NASG': lambda n=12: create_nanomamba_nc_large(n, use_nasg=True),
@@ -3880,6 +3881,8 @@ def main():
     np.random.seed(args.seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(args.seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"\n{'='*80}")
