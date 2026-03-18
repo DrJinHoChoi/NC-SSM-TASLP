@@ -924,17 +924,17 @@ Table~\ref{tab:noise_main} reports accuracy under five noise types at all SNR le
 \centering
 \pgfplotsset{
   noise plot/.style={
-    width=0.33\textwidth, height=4.5cm,
+    width=0.35\textwidth, height=5.0cm,
     xmin=-17, xmax=17, ymin=30, ymax=100,
     xtick={-15,-10,-5,0,5,10,15},
     ytick={30,40,50,60,70,80,90,100},
     grid=both,
     grid style={line width=.1pt, draw=gray!10},
     major grid style={line width=.2pt, draw=gray!25},
-    every axis plot/.append style={thin, mark size=1.3pt},
-    tick label style={font=\tiny},
-    label style={font=\tiny},
-    title style={font=\scriptsize\bfseries},
+    every axis plot/.append style={thin, mark size=1.5pt},
+    tick label style={font=\scriptsize},
+    label style={font=\scriptsize},
+    title style={font=\small\bfseries},
   }
 }
 \begin{tikzpicture}
@@ -1009,7 +1009,7 @@ Table~\ref{tab:noise_main} reports accuracy under five noise types at all SNR le
 \begin{axis}[noise plot, name=p5, at={(p4.east)}, anchor=west, xshift=0.15cm,
     title={Pink}, ylabel={}, xlabel={SNR (dB)},
     legend to name=shared_legend,
-    legend style={font=\tiny, legend columns=3, column sep=3pt,
+    legend style={font=\scriptsize, legend columns=3, column sep=4pt,
       draw=none}]
 \addplot[color=plotdscnn, dashdotted, mark=|, mark options={solid, scale=1.2}]
     coordinates {(-15,61.3)(-10,62.7)(-5,76.2)(0,88.3)(5,93.1)(10,95.1)(15,96.0)};
