@@ -925,7 +925,7 @@ Table~\ref{tab:noise_main} reports accuracy under five noise types at all SNR le
 \centering
 \pgfplotsset{
   low snr plot/.style={
-    width=0.35\textwidth, height=4.8cm,
+    width=0.32\textwidth, height=4.8cm,
     xmin=-16, xmax=1, ymin=30, ymax=95,
     xtick={-15,-10,-5,0},
     ytick={30,40,50,60,70,80,90},
@@ -955,8 +955,8 @@ Table~\ref{tab:noise_main} reports accuracy under five noise types at all SNR le
     coordinates {(-15,63.0)(-10,73.0)(-5,83.4)(0,89.7)};
 \end{axis}
 
-\begin{axis}[low snr plot, name=p2, at={(p1.east)}, anchor=west, xshift=0.15cm,
-    title={White}, ylabel={}, xlabel={}]
+\begin{axis}[low snr plot, name=p2, at={(p1.east)}, anchor=west, xshift=0.4cm,
+    title={White}, ylabel={}, xlabel={}, yticklabels={}]
 \addplot[color=plotdscnn, dashdotted, mark=|, mark options={solid, scale=1.3}]
     coordinates {(-15,61.6)(-10,64.0)(-5,76.8)(0,88.8)};
 \addplot[color=plotcnn, mark=square*]
@@ -971,8 +971,8 @@ Table~\ref{tab:noise_main} reports accuracy under five noise types at all SNR le
     coordinates {(-15,44.0)(-10,63.1)(-5,81.2)(0,88.4)};
 \end{axis}
 
-\begin{axis}[low snr plot, name=p3, at={(p2.east)}, anchor=west, xshift=0.15cm,
-    title={Babble}, ylabel={}, xlabel={}]
+\begin{axis}[low snr plot, name=p3, at={(p2.east)}, anchor=west, xshift=0.4cm,
+    title={Babble}, ylabel={}, xlabel={}, yticklabels={}]
 \addplot[color=plotdscnn, dashdotted, mark=|, mark options={solid, scale=1.3}]
     coordinates {(-15,72.8)(-10,80.5)(-5,87.1)(0,91.6)};
 \addplot[color=plotcnn, mark=square*]
@@ -1006,8 +1006,8 @@ Table~\ref{tab:noise_main} reports accuracy under five noise types at all SNR le
     coordinates {(-15,54.1)(-10,66.9)(-5,77.5)(0,87.6)};
 \end{axis}
 
-\begin{axis}[low snr plot, name=p5, at={(p4.east)}, anchor=west, xshift=0.15cm,
-    title={Pink}, ylabel={}, xlabel={SNR (dB)},
+\begin{axis}[low snr plot, name=p5, at={(p4.east)}, anchor=west, xshift=0.4cm,
+    title={Pink}, ylabel={}, xlabel={SNR (dB)}, yticklabels={},
     legend to name=shared_legend,
     legend style={font=\scriptsize, legend columns=3, column sep=4pt,
       draw=none}]
@@ -1043,7 +1043,7 @@ Table~\ref{tab:noise_main} reports accuracy under five noise types at all SNR le
 \centering
 \pgfplotsset{
   high snr plot/.style={
-    width=0.35\textwidth, height=4.8cm,
+    width=0.32\textwidth, height=4.8cm,
     xmin=-1, xmax=16, ymin=82, ymax=97,
     xtick={0,5,10,15},
     ytick={82,84,86,88,90,92,94,96},
@@ -1073,8 +1073,8 @@ Table~\ref{tab:noise_main} reports accuracy under five noise types at all SNR le
     coordinates {(0,89.7)(5,93.4)(10,94.9)(15,95.0)};
 \end{axis}
 
-\begin{axis}[high snr plot, name=q2, at={(q1.east)}, anchor=west, xshift=0.15cm,
-    title={White}, ylabel={}, xlabel={}]
+\begin{axis}[high snr plot, name=q2, at={(q1.east)}, anchor=west, xshift=0.4cm,
+    title={White}, ylabel={}, xlabel={}, yticklabels={}]
 \addplot[color=plotdscnn, dashdotted, mark=|, mark options={solid, scale=1.3}]
     coordinates {(0,88.8)(5,92.6)(10,94.3)(15,95.6)};
 \addplot[color=plotcnn, mark=square*]
@@ -1089,8 +1089,8 @@ Table~\ref{tab:noise_main} reports accuracy under five noise types at all SNR le
     coordinates {(0,88.4)(5,92.9)(10,94.5)(15,95.2)};
 \end{axis}
 
-\begin{axis}[high snr plot, name=q3, at={(q2.east)}, anchor=west, xshift=0.15cm,
-    title={Babble}, ylabel={}, xlabel={}]
+\begin{axis}[high snr plot, name=q3, at={(q2.east)}, anchor=west, xshift=0.4cm,
+    title={Babble}, ylabel={}, xlabel={}, yticklabels={}]
 \addplot[color=plotdscnn, dashdotted, mark=|, mark options={solid, scale=1.3}]
     coordinates {(0,91.6)(5,94.8)(10,95.8)(15,96.0)};
 \addplot[color=plotcnn, mark=square*]
@@ -1124,8 +1124,8 @@ Table~\ref{tab:noise_main} reports accuracy under five noise types at all SNR le
     coordinates {(0,87.6)(5,91.8)(10,94.0)(15,95.1)};
 \end{axis}
 
-\begin{axis}[high snr plot, name=q5, at={(q4.east)}, anchor=west, xshift=0.15cm,
-    title={Pink}, ylabel={}, xlabel={SNR (dB)}]
+\begin{axis}[high snr plot, name=q5, at={(q4.east)}, anchor=west, xshift=0.4cm,
+    title={Pink}, ylabel={}, xlabel={SNR (dB)}, yticklabels={}]
 \addplot[color=plotdscnn, dashdotted, mark=|, mark options={solid, scale=1.3}]
     coordinates {(0,88.3)(5,93.1)(10,95.1)(15,96.0)};
 \addplot[color=plotcnn, mark=square*]
