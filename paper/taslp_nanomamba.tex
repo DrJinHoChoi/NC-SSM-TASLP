@@ -656,7 +656,7 @@ Warm-start initialization preserves SM-SSM behavior: $\mathbf{w}^{\text{sub}} = 
 \begin{tikzpicture}[
   node distance=0.3cm and 0.4cm,
   >=Stealth,
-  block/.style={rectangle, draw, rounded corners=3pt, minimum height=1.1cm, minimum width=1.6cm, font=\small\sffamily\bfseries, align=center, very thick},
+  block/.style={rectangle, draw, rounded corners=3pt, minimum height=1.3cm, minimum width=1.8cm, font=\normalsize\sffamily\bfseries, align=center, very thick},
   ssm/.style={block, fill=ssmcolor!20, draw=ssmcolor!90},
   ncnew/.style={block, fill=newcolor!25, draw=newcolor!90},
   shared/.style={block, fill=sharedcolor!18, draw=sharedcolor!80},
@@ -669,23 +669,23 @@ Warm-start initialization preserves SM-SSM behavior: $\mathbf{w}^{\text{sub}} = 
 
 % === Row 1: Main signal path (left to right) ===
 \node[io] (audio) {Raw Audio\\16\,kHz};
-\node[ncnew, right=0.6cm of audio, minimum width=2.2cm] (ss) {SS + Bypass\\{\tiny (0 params, Sec.~VII-F)}};
-\node[shared, right=0.6cm of ss] (stft) {STFT\\{\tiny $N{=}512$, hop$=$160}};
-\node[shared, right=0.4cm of stft, minimum width=1.4cm] (mel) {Mel\\{\tiny 40 bands}};
-\node[ncnew, right=0.4cm of mel, minimum width=1.8cm] (lsg) {LSG\\{\tiny (120p, Sec.~VII-E)}};
-\node[ssm, right=0.4cm of lsg, minimum width=2cm] (pcen) {DualPCEN\\{\tiny v2}};
+\node[ncnew, right=0.6cm of audio, minimum width=2.2cm] (ss) {SS + Bypass\\{\scriptsize (0 params)}};
+\node[shared, right=0.6cm of ss] (stft) {STFT\\{\scriptsize $N{=}512$}};
+\node[shared, right=0.4cm of stft, minimum width=1.4cm] (mel) {Mel\\{\scriptsize 40 bands}};
+\node[ncnew, right=0.4cm of mel, minimum width=1.8cm] (lsg) {LSG\\{\scriptsize (120p)}};
+\node[ssm, right=0.4cm of lsg, minimum width=2cm] (pcen) {DualPCEN\\{\scriptsize v2}};
 
 % SSM Block 1
 \node[ssmblock, right=0.6cm of pcen, minimum height=3.6cm] (blk1box) {};
 \node[font=\small\sffamily\bfseries, text=ssmcolor!80] at ([yshift=1.5cm]blk1box.center) {NC-SSM Block 1};
-\node[ssm, minimum width=2.4cm, minimum height=0.7cm] at ([yshift=0.3cm]blk1box.center) (scan1) {Selective Scan\\{\tiny $d{=}16,\,N{=}6$}};
-\node[ncnew, minimum width=2.4cm, minimum height=0.7cm] at ([yshift=-0.7cm]blk1box.center) (sig1) {$\bm{\sigma}$-gate\\{\tiny per-sub-band}};
+\node[ssm, minimum width=2.4cm, minimum height=0.7cm] at ([yshift=0.3cm]blk1box.center) (scan1) {Selective Scan\\{\scriptsize $d{=}16,\,N{=}6$}};
+\node[ncnew, minimum width=2.4cm, minimum height=0.7cm] at ([yshift=-0.7cm]blk1box.center) (sig1) {$\bm{\sigma}$-gate\\{\scriptsize per-sub-band}};
 
 % SSM Block 2
 \node[ssmblock, right=0.5cm of blk1box, minimum height=3.6cm] (blk2box) {};
 \node[font=\small\sffamily\bfseries, text=ssmcolor!80] at ([yshift=1.5cm]blk2box.center) {NC-SSM Block 2};
-\node[ssm, minimum width=2.4cm, minimum height=0.7cm] at ([yshift=0.3cm]blk2box.center) (scan2) {Selective Scan\\{\tiny $d{=}16,\,N{=}6$}};
-\node[ncnew, minimum width=2.4cm, minimum height=0.7cm] at ([yshift=-0.7cm]blk2box.center) (sig2) {$\bm{\sigma}$-gate\\{\tiny per-sub-band}};
+\node[ssm, minimum width=2.4cm, minimum height=0.7cm] at ([yshift=0.3cm]blk2box.center) (scan2) {Selective Scan\\{\scriptsize $d{=}16,\,N{=}6$}};
+\node[ncnew, minimum width=2.4cm, minimum height=0.7cm] at ([yshift=-0.7cm]blk2box.center) (sig2) {$\bm{\sigma}$-gate\\{\scriptsize per-sub-band}};
 
 % Classifier
 \node[shared, right=0.5cm of blk2box, minimum width=1.5cm] (pool) {Global\\AvgPool};
@@ -709,12 +709,12 @@ Warm-start initialization preserves SM-SSM behavior: $\mathbf{w}^{\text{sub}} = 
 \draw[arr, color=newcolor!80] (sig2) -- (scan2);
 
 % === SNR estimation branch (below main path) ===
-\node[ncnew, below=1.2cm of lsg, minimum width=2.2cm] (snrest) {SNR Estimation\\{\tiny per-band, $\hat{\mathbf{s}}_t \in \mathbb{R}^{40}$}};
-\node[ncnew, below=0.3cm of snrest, minimum width=2.2cm, minimum height=0.6cm] (subpool) {Sub-Band Pool\\{\tiny $\mathbb{R}^{40} \to \mathbb{R}^6$}};
+\node[ncnew, below=1.2cm of lsg, minimum width=2.4cm] (snrest) {SNR Est.\\{\scriptsize $\hat{\mathbf{s}}_t \in \mathbb{R}^{40}$}};
+\node[ncnew, below=0.3cm of snrest, minimum width=2.4cm, minimum height=0.7cm] (subpool) {Sub-Band Pool\\{\scriptsize $\mathbb{R}^{40} \to \mathbb{R}^6$}};
 
 % Conditioning features
-\node[ncnew, left=0.4cm of subpool, minimum width=1.5cm, minimum height=0.6cm, font=\tiny\sffamily] (stat) {Stationarity\\$g_t$};
-\node[ncnew, right=0.4cm of subpool, minimum width=1.5cm, minimum height=0.6cm, font=\tiny\sffamily] (sf) {Spec.~Flat.\\$\beta_t$};
+\node[ncnew, left=0.4cm of subpool, minimum width=1.6cm, minimum height=0.7cm, font=\scriptsize\sffamily\bfseries] (stat) {Stationarity\\$g_t$};
+\node[ncnew, right=0.4cm of subpool, minimum width=1.6cm, minimum height=0.7cm, font=\scriptsize\sffamily\bfseries] (sf) {Spec.~Flat.\\$\beta_t$};
 
 
 % Conditioning arrows
