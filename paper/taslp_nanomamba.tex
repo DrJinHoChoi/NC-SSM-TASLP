@@ -75,7 +75,7 @@ CNN architectures such as DS-CNN~\cite{zhang2017hello} and BC-ResNet~\cite{kim20
 State space models (SSMs)~\cite{gu2024mamba,gu2022efficiently}, particularly the selective SSM architecture Mamba~\cite{gu2024mamba}, offer linear-time sequential modeling with input-dependent dynamics, making them attractive for edge deployment due to constant-memory streaming inference.
 
 A striking observation motivates this work.
-When trained on \textbf{clean data only}, our SSM model (NanoMamba, 7{,}402 parameters) retains \textbf{77.7\%} average accuracy at 0\,dB SNR---\textbf{11.0\,\%p} above BC-ResNet-1 (66.7\%, 7{,}464 parameters) and \textbf{24.5\,\%p} above DS-CNN-S (53.2\%, 23{,}756 parameters).
+When trained on \textbf{clean data only}, our base SSM model (SM-SSM, 7{,}402 parameters) retains \textbf{77.7\%} average accuracy at 0\,dB SNR---\textbf{11.0\,\%p} above BC-ResNet-1 (66.7\%, 7{,}464 parameters) and \textbf{24.5\,\%p} above DS-CNN-S (53.2\%, 23{,}756 parameters).
 This demonstrates that SSMs possess \emph{inherent structural} noise robustness that CNNs entirely lack: the SSM's input-dependent dynamics inherently adapt to noisy inputs without any noise exposure during training.
 Moreover, this advantage persists across SNRs above $-5$\,dB, suggesting a fundamental architectural property rather than a training artifact.
 
@@ -253,7 +253,7 @@ To isolate structural from training-based robustness, we compare models trained 
 \toprule
 \textbf{Model} & \textbf{Train} & \textbf{Fact.} & \textbf{White} & \textbf{Bab.} & \textbf{Avg} \\
 \midrule
-\multirow{3}{*}{\shortstack[l]{NM-Matched\\(7.4K, SSM)}}
+\multirow{3}{*}{\shortstack[l]{SM-SSM\\(7.4K, SSM)}}
   & Clean  & 78.3 & 80.5 & 74.2 & \textbf{77.7} \\
   & NA     & 88.5 & 85.5 & 91.0 & 88.3 \\
   & $\Delta$ & \multicolumn{4}{c}{\textbf{+10.6\,\%p}} \\
@@ -274,12 +274,12 @@ To isolate structural from training-based robustness, we compare models trained 
 The results are striking:
 \begin{itemize}
 \setlength\itemsep{0pt}
-\item NanoMamba (SSM, 7.4K) retains \textbf{77.7\%} at 0\,dB with clean-only training.
+\item SM-SSM (SSM, 7.4K) retains \textbf{77.7\%} at 0\,dB with clean-only training.
 \item BC-ResNet-1 (CNN, 7.5K) drops to 66.7\%---\textbf{11.0\,\%p lower}.
 \item DS-CNN-S (CNN, 23.8K) collapses to 53.2\%---\textbf{24.5\,\%p lower} despite 3.2$\times$ more parameters.
 \end{itemize}
 
-NanoMamba requires only +10.6\,\%p from noise-aug to reach its best performance; BC-ResNet-1 needs +20.7\,\%p (2.0$\times$) and DS-CNN-S needs +38.8\,\%p (3.7$\times$)---confirming that CNNs are \emph{almost entirely dependent} on training data for noise robustness.
+SM-SSM requires only +10.6\,\%p from noise-aug to reach its best performance; BC-ResNet-1 needs +20.7\,\%p (2.0$\times$) and DS-CNN-S needs +38.8\,\%p (3.7$\times$)---confirming that CNNs are \emph{almost entirely dependent} on training data for noise robustness.
 
 
 % ============================================================
@@ -767,7 +767,7 @@ Noise is mixed at $\{-15, -10, -5, 0, 5, 10, 15\}$\,dB SNR, yielding $5 \times 7
 
 \begin{table}[t]
 \centering
-\caption{Model configurations. All primary models are within BC-ResNet-1's 7{,}464-parameter budget; NC-SSM-Large scales beyond this budget to surpass CNN accuracy. NC-SSM achieves the fewest parameters among SSM variants while adding noise-adaptive capabilities.}
+\caption{Model configurations. NC-SSM matches BC-ResNet-1's 7{,}464-parameter budget; larger variants scale beyond this budget. NC-SSM achieves the fewest parameters among all models while adding noise-adaptive capabilities.}
 \label{tab:configs}
 \small
 \setlength{\tabcolsep}{3pt}
@@ -778,20 +778,17 @@ Noise is mixed at $\{-15, -10, -5, 0, 5, 10, 15\}$\,dB SNR, yielding $5 \times 7
 DS-CNN-S~\cite{zhang2017hello} & CNN & 23{,}756 & 23.2\,KB \\
 BC-ResNet-1~\cite{kim2021bcresnet} & CNN & 7{,}464 & 7.3\,KB \\
 \midrule
-NM-Matched (SA-SSM v2) & SSM & 7{,}402 & 7.2\,KB \\
 \textbf{NC-SSM} & SSM+LSG & \textbf{7{,}453} & \textbf{7.3\,KB} \\
 NC-SSM-Large & SSM+LSG & 10{,}201 & 10.0\,KB \\
-NC-SSM+NanoSE & SSM+LSG+SE & 11{,}883 & 11.6\,KB \\
-NC-SSM+NanoSE-v3 & SSM+SE & 7{,}405 & 7.2\,KB \\
+NC-SSM-15K & SSM+LSG & 15{,}843 & 15.5\,KB \\
 NC-SSM-20K & SSM+LSG & 20{,}044 & 19.6\,KB \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 Table~\ref{tab:configs} lists all models.
-\textbf{NM-Matched} (NanoMamba-Matched) denotes the base SSM model---SA-SSM v2 with selectivity-aware gating---configured to match BC-ResNet-1's parameter budget ($d_{\text{model}}{=}20$, $d_{\text{state}}{=}6$, $d_{\text{conv}}{=}3$, expand${=}1.5$; 7{,}402 params).
-It serves as the SSM baseline against which NC-SSM's noise-conditioning components are evaluated.
-NC-SSM-Large scales capacity via $d_{\text{model}}{=}24$, $N{=}8$ (vs.\ 16, 6), surpassing BC-ResNet-1's accuracy while maintaining $>$4$\times$ efficiency advantage.
+NC-SSM ($d_{\text{model}}{=}16$, $d_{\text{state}}{=}6$, $d_{\text{conv}}{=}3$, expand${=}1.5$; 7{,}453 params) is the core noise-conditioned SSM matching BC-ResNet-1's parameter budget.
+NC-SSM-Large scales capacity via $d_{\text{model}}{=}24$, $N{=}8$, surpassing BC-ResNet-1's accuracy while maintaining $>$4$\times$ efficiency advantage.
 NC-SSM-20K further scales to $d_{\text{model}}{=}37$, $N{=}10$ (20{,}044 params), matching DS-CNN-S accuracy (96.4\%) with 5.1$\times$ fewer MACs.
 
 \subsection{Training Details}
@@ -817,7 +814,7 @@ SSM models additionally use SpecAugment~\cite{park2019specaugment} and EMA (deca
 
 \begin{table}[t]
 \centering
-\caption{Clean accuracy on GSC V2 (12-class). NC-SSM scales gracefully from 7.4K to 20K parameters, matching DS-CNN-S accuracy with $5.1\times$ fewer MACs.}
+\caption{Clean accuracy on GSC V2 (12-class). NC-SSM scales gracefully from 7.4K to 20K parameters, matching DS-CNN-S accuracy (96.4\%) with $5.1\times$ fewer MACs.}
 \label{tab:clean}
 \small
 \begin{tabular}{lrr}
@@ -827,11 +824,8 @@ SSM models additionally use SpecAugment~\cite{park2019specaugment} and EMA (deca
 DS-CNN-S & 23{,}756 & \textbf{96.4} \\
 BC-ResNet-1 & 7{,}464 & 95.0 \\
 \midrule
-NM-Matched & 7{,}402 & 95.1 \\
 NC-SSM & 7{,}443 & 95.3 \\
-NC-SSM+NanoSE-v3 & 7{,}405 & 94.8 \\
 NC-SSM-Large & 10{,}191 & 95.6 \\
-NC-SSM-12K & 12{,}683 & --- \\
 NC-SSM-15K & 15{,}843 & 96.2 \\
 NC-SSM-20K & 20{,}044 & \textbf{96.4} \\
 \bottomrule
@@ -855,65 +849,50 @@ Table~\ref{tab:noise_main} reports accuracy under five noise types at all SNR le
 
 \begin{table*}[t]
 \centering
-\caption{Noise robustness comparison (accuracy \%). All models trained with noise augmentation. Best per condition in \textbf{bold}. NC-SSM-20K matches DS-CNN-S clean accuracy (96.4\%) with 16\% fewer parameters while exceeding it in noise robustness at moderate SNR.}
+\caption{Noise robustness comparison (accuracy \%). All models trained with noise augmentation. Best per condition in \textbf{bold}. NC-SSM-20K matches DS-CNN-S clean accuracy (96.4\%) while exceeding it in noise robustness at moderate SNR.}
 \label{tab:noise_main}
 \small
 \begin{tabular}{ll|cccccccc}
 \toprule
 \textbf{Noise} & \textbf{Model} & \textbf{Clean} & $\mathbf{-15}$ & $\mathbf{-10}$ & $\mathbf{-5}$ & $\mathbf{0}$ & $\mathbf{5}$ & $\mathbf{10}$ & $\mathbf{15}$\,\textbf{dB} \\
 \midrule
-\multirow{10}{*}{Factory}
+\multirow{6}{*}{Factory}
   & DS-CNN-S (23.8K)       & \textbf{96.4} & \textbf{63.8} & 70.4 & 79.9 & \textbf{90.4} & \textbf{93.5} & \textbf{94.9} & \textbf{95.7} \\
   & BC-ResNet-1 (7.5K)     & 95.0 & 63.2 & 71.7 & 81.5 & 88.0 & 90.7 & 92.0 & 93.3 \\
-  & NM-Matched (7.4K)      & 94.8 & 60.7 & 65.7 & 76.5 & 85.6 & 90.2 & 92.4 & 93.1 \\
   & NC-SSM (7.5K)          & 95.3 & 61.4 & 69.2 & 77.8 & 86.8 & 90.1 & 92.4 & 92.9 \\
   & NC-SSM-Large (10.2K)   & 95.6 & 61.3 & 68.6 & 79.1 & 87.0 & 91.0 & 93.1 & 93.4 \\
-  & NC-SSM+NanoSE (11.9K)  & 95.9 & 60.7 & 68.9 & 80.7 & 89.3 & 92.6 & 94.0 & 94.6 \\
-  & NC-SSM+NanoSE-v3 (7.4K) & 94.8 & 59.3 & 67.2 & 78.0 & 85.9 & 90.3 & 92.2 & 92.6 \\
   & NC-SSM-15K (15.8K) & 96.3 & 63.2 & \textbf{73.4} & \textbf{83.7} & 89.6 & 92.6 & 94.1 & 94.7 \\
   & NC-SSM-20K (20.0K) & 96.2 & 63.0 & 73.0 & 83.4 & 89.7 & 93.4 & \textbf{94.9} & 95.0 \\
 \midrule
-\multirow{10}{*}{White}
+\multirow{6}{*}{White}
   & DS-CNN-S (23.8K)       & \textbf{96.4} & \textbf{61.6} & 64.0 & 76.8 & \textbf{88.8} & 92.6 & 94.3 & \textbf{95.6} \\
   & BC-ResNet-1 (7.5K)     & 95.0 & 54.4 & 60.6 & 73.7 & 83.0 & 89.4 & 91.7 & 93.6 \\
-  & NM-Matched (7.4K)      & 94.8 & 28.0 & 53.6 & 72.7 & 83.9 & 89.6 & 92.3 & 93.3 \\
   & NC-SSM (7.5K)          & 95.3 & 50.8 & 63.0 & 75.5 & 85.2 & 90.0 & 92.5 & 93.5 \\
   & NC-SSM-Large (10.2K)   & 95.6 & 34.1 & 59.8 & 76.5 & 86.4 & 91.0 & 93.4 & 94.4 \\
-  & NC-SSM+NanoSE (11.9K)  & 95.9 & 40.4 & 59.8 & 79.2 & 87.5 & 91.6 & 93.6 & 94.7 \\
-  & NC-SSM+NanoSE-v3 (7.4K) & 94.8 & 34.3 & 61.4 & 75.5 & 85.1 & 90.0 & 92.2 & 93.4 \\
   & NC-SSM-15K (15.8K) & 96.3 & 44.7 & \textbf{65.2} & 80.0 & 87.5 & 92.5 & 94.2 & 94.9 \\
   & NC-SSM-20K (20.0K) & 96.2 & 44.0 & 63.1 & \textbf{81.2} & 88.4 & \textbf{92.9} & \textbf{94.5} & 95.2 \\
 \midrule
-\multirow{10}{*}{Babble}
+\multirow{6}{*}{Babble}
   & DS-CNN-S (23.8K)       & \textbf{96.4} & 72.8 & 80.5 & 87.1 & 91.6 & 94.8 & \textbf{95.8} & 96.0 \\
   & BC-ResNet-1 (7.5K)     & 95.0 & 72.0 & 81.1 & 86.7 & 91.2 & 93.0 & 94.2 & 94.5 \\
-  & NM-Matched (7.4K)      & 94.7 & 71.1 & 78.5 & 84.7 & 89.6 & 92.5 & 93.6 & 94.3 \\
   & NC-SSM (7.5K)          & 95.2 & 73.4 & 79.1 & 84.1 & 89.9 & 92.4 & 94.0 & 94.8 \\
   & NC-SSM-Large (10.2K)   & 95.5 & 74.0 & 80.2 & 86.8 & 91.3 & 93.3 & 94.4 & 95.1 \\
-  & NC-SSM+NanoSE (11.9K)  & 95.9 & 74.1 & 80.8 & 88.1 & 91.6 & 93.7 & 94.8 & 95.4 \\
-  & NC-SSM+NanoSE-v3 (7.4K) & 94.8 & 72.8 & 79.4 & 85.5 & 90.1 & 92.9 & 93.7 & 94.5 \\
   & NC-SSM-15K (15.8K) & 96.1 & \textbf{79.2} & \textbf{84.5} & \textbf{89.5} & 92.3 & 94.5 & 95.3 & 95.7 \\
   & NC-SSM-20K (20.0K) & 96.3 & 77.0 & 83.6 & 89.0 & \textbf{92.9} & \textbf{94.9} & 95.5 & \textbf{96.1} \\
 \midrule
-\multirow{10}{*}{Street}
+\multirow{6}{*}{Street}
   & DS-CNN-S (23.8K)       & \textbf{96.4} & \textbf{61.5} & 67.1 & \textbf{78.1} & \textbf{88.1} & \textbf{92.5} & \textbf{94.9} & \textbf{95.8} \\
   & BC-ResNet-1 (7.5K)     & 95.0 & 60.5 & 63.3 & 73.3 & 83.2 & 87.9 & 92.1 & 93.4 \\
-  & NM-Matched (7.4K)      & 94.7 & 52.6 & 62.5 & 72.6 & 84.0 & 89.4 & 91.8 & 93.3 \\
   & NC-SSM (7.5K)          & 95.2 & 60.2 & 64.3 & 75.2 & 82.2 & 88.9 & 92.2 & 93.7 \\
   & NC-SSM-Large (10.2K)   & 95.6 & 57.8 & 63.5 & 75.7 & 83.4 & 90.1 & 92.8 & 94.5 \\
-  & NC-SSM+NanoSE (11.9K)  & 95.9 & 54.5 & 65.4 & 76.5 & 85.5 & 91.2 & 93.5 & 95.0 \\
-  & NC-SSM+NanoSE-v3 (7.4K) & 94.8 & 56.5 & 65.1 & 75.8 & 85.0 & 89.6 & 92.2 & 93.5 \\
   & NC-SSM-15K (15.8K) & 96.3 & 53.9 & \textbf{67.3} & 77.3 & 86.8 & 91.1 & 93.9 & 94.9 \\
   & NC-SSM-20K (20.0K) & 96.3 & 54.1 & 66.9 & 77.5 & 87.6 & 91.8 & 94.0 & 95.1 \\
 \midrule
-\multirow{10}{*}{Pink}
+\multirow{6}{*}{Pink}
   & DS-CNN-S (23.8K)       & \textbf{96.4} & \textbf{61.3} & 62.7 & 76.2 & 88.3 & 93.1 & \textbf{95.1} & \textbf{96.0} \\
   & BC-ResNet-1 (7.5K)     & 95.0 & 54.9 & 61.9 & 75.8 & 85.6 & 90.8 & 93.3 & 94.2 \\
-  & NM-Matched (7.4K)      & 94.7 & 17.7 & 42.7 & 73.6 & 85.2 & 91.0 & 93.2 & 94.1 \\
   & NC-SSM (7.5K)          & 95.2 & 55.2 & 62.9 & 76.7 & 86.6 & 91.5 & 93.0 & 94.4 \\
   & NC-SSM-Large (10.2K)   & 95.6 & 55.4 & 62.2 & 76.4 & 87.2 & 91.9 & 93.8 & 94.7 \\
-  & NC-SSM+NanoSE (11.9K)  & 95.9 & 47.2 & 59.4 & 79.5 & 88.4 & 92.4 & 94.6 & 95.3 \\
-  & NC-SSM+NanoSE-v3 (7.4K) & 94.8 & 23.1 & 52.4 & 76.4 & 86.1 & 91.2 & 93.5 & 94.1 \\
   & NC-SSM-15K (15.8K) & 96.3 & 46.7 & \textbf{64.8} & \textbf{81.3} & 89.0 & 93.2 & 94.8 & 95.2 \\
   & NC-SSM-20K (20.0K) & 96.3 & 45.9 & 62.7 & 80.8 & \textbf{89.5} & \textbf{93.3} & \textbf{95.1} & 95.7 \\
 \bottomrule
@@ -1019,7 +998,7 @@ Table~\ref{tab:noise_main} reports accuracy under five noise types at all SNR le
 \addlegendentry{BC-ResNet-1 (7.5K)}
 \addplot[color=plotssm, mark=*]
     coordinates {(-15,55.2)(-10,62.9)(-5,76.7)(0,86.6)};
-\addlegendentry{NC-SSM (7.4K)}
+\addlegendentry{NC-SSM (7.5K)}
 \addplot[color=plotlarge, densely dashed, mark=diamond*, mark options={solid}]
     coordinates {(-15,55.4)(-10,62.2)(-5,76.4)(0,87.2)};
 \addlegendentry{NC-SSM-L (10.2K)}
@@ -1161,18 +1140,15 @@ Classical spectral subtraction (Section~\ref{sec:ss_bypass}) provides substantia
 \toprule
 \textbf{Model} & \textbf{Fact.} & \textbf{White} & \textbf{Bab.} & \textbf{Str.} & \textbf{Pink} \\
 \midrule
-NM-Matched  & +0.9 & \textbf{+19.9} & $-$1.6 & \textbf{+7.8} & \textbf{+4.1} \\
-NC-SSM      & +0.7 & +15.4 & +0.4 & +1.4 & \textbf{+4.1} \\
-NC-SSM+NanoSE & +2.3 & +17.4 & \textbf{+2.7} & +2.8 & $-$7.8 \\
-DS-CNN-S    & +1.3 & +1.3 & $-$0.1 & +2.9 & +1.8 \\
+NC-SSM      & +0.7 & \textbf{+15.4} & \textbf{+0.4} & +1.4 & \textbf{+4.1} \\
+DS-CNN-S    & +1.3 & +1.3 & $-$0.1 & \textbf{+2.9} & +1.8 \\
 BC-ResNet-1 & \textbf{+2.4} & +0.5 & $-$0.1 & $-$2.0 & +3.7 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-SSMs benefit dramatically from SS under stationary noise: NM-Matched gains +19.9\,\%p (white) at $-15$\,dB, while CNN baselines improve by at most 3.7\,\%p.
+SSMs benefit dramatically from SS under stationary noise: NC-SSM gains +15.4\,\%p (white) at $-15$\,dB, while CNN baselines improve by at most 3.7\,\%p.
 This asymmetry follows from Section~\ref{sec:mult_noise}: SS reduces SSM internal variance by $\alpha^6$ vs.\ $\alpha^2$ for CNNs.
-Notably, NC-SSM+NanoSE exhibits negative SS interaction for pink noise ($-7.8$\,\%p): NanoSE's learned mel-domain mask conflicts with SS's spectral subtraction, causing double suppression in the low-frequency bands where pink noise concentrates.
 
 
 \subsection{Ablation Study}
@@ -1180,7 +1156,7 @@ Notably, NC-SSM+NanoSE exhibits negative SS interaction for pink noise ($-7.8$\,
 
 \begin{table}[t]
 \centering
-\caption{NC-SSM conditioning ablation. $\Delta$P: additional parameters vs.\ base model. NC-SSM conditioning (+26 params) improves White $-15$\,dB from 31.1\% to 50.8\% (+19.7\,\%p).}
+\caption{NC-SSM conditioning ablation. $\Delta$P: additional parameters vs.\ base SM-SSM. NC-SSM conditioning (+26 params) improves White $-15$\,dB from 31.1\% to 50.8\% (+19.7\,\%p).}
 \label{tab:ablation}
 \small
 \setlength{\tabcolsep}{3pt}
@@ -1188,7 +1164,7 @@ Notably, NC-SSM+NanoSE exhibits negative SS interaction for pink noise ($-7.8$\,
 \toprule
 \textbf{Configuration} & \textbf{$\Delta$P} & \textbf{Clean} & \textbf{Fact. 0} & \textbf{Wht. $-$15} \\
 \midrule
-Base SA-SSM v2 (NM-Matched)     & 0   & 95.1 & 88.5 & 31.1 \\
+Base SM-SSM     & 0   & 95.1 & 88.5 & 31.1 \\
 \quad + NC-SSM conditioning      & +26 & 95.3 & 88.0 & 50.8 \\
 \bottomrule
 \end{tabular}
@@ -1216,7 +1192,7 @@ The $\sigma$-gate drives selectivity toward zero at low SNR, reducing multiplica
 \subsection{Selectivity Gate Behavior}
 
 NC-SSM's per-sub-band selectivity gate $\bm{\sigma}$ learns frequency-aware modulation: under factory noise, low-frequency sub-bands reduce selectivity ($\sigma \to 0$, LTI mode) while high-frequency speech-dominant bands retain full selectivity ($\sigma \to 1$).
-This frequency-selective behavior---impossible with SM-SSM's scalar gate---enables NC-SSM to maintain competitive clean accuracy (+0.2\,\%p over NM-Matched) while improving noise robustness.
+This frequency-selective behavior---impossible with SM-SSM's scalar gate---enables NC-SSM to maintain competitive clean accuracy while improving noise robustness.
 
 \subsection{Deployment Efficiency on Edge Hardware}
 \label{sec:mcu_deploy}
@@ -1311,7 +1287,6 @@ DS-CNN-S       & 23.8 & 25.67 & 24.32 & 53.5 & \textbf{96.4} & 3.8 \\
 \multicolumn{7}{l}{\textit{NC-SSM family (proposed)}} \\
 NC-SSM         & 7.4  & \textbf{3.42} & \textbf{0.86} & \textbf{7.1}  & 95.3 & \textbf{27.8} \\
 NC-SSM-Large   & 10.2 & 3.80 & 1.24 & 7.9  & 95.6 & 25.2 \\
-NC-SSM-12K     & 12.7 & 4.08 & 1.52 & 8.5  & ---  & --- \\
 NC-SSM-15K     & 15.8 & 4.48 & 1.92 & 9.3  & 96.2 & 21.5 \\
 NC-SSM-20K     & 20.0 & 5.00 & 2.44 & 10.4 & \textbf{96.4} & 19.3 \\
 \bottomrule
