@@ -349,6 +349,252 @@ class SpeechCommandsDataset(Dataset):
 
 
 # ============================================================================
+# Fluent Speech Commands (FSC) Dataset — 31-class Intent Classification
+# ============================================================================
+
+import csv
+
+FSC_INTENT_LABELS = None  # Populated dynamically from CSV data
+
+
+def _build_fsc_intent_map(csv_path):
+    """Read CSV and build sorted intent label list from (action, object, location) tuples."""
+    intents = set()
+    with open(csv_path, 'r', encoding='utf-8') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            intent = (row['action'].strip(), row['object'].strip(), row['location'].strip())
+            intents.add(intent)
+    sorted_intents = sorted(intents)
+    label_list = [f"{a}_{o}_{l}" for a, o, l in sorted_intents]
+    intent_to_idx = {intent: i for i, intent in enumerate(sorted_intents)}
+    return label_list, intent_to_idx, sorted_intents
+
+
+def _download_fsc(data_dir):
+    """Download and extract FSC dataset if not present.
+
+    Expects the dataset to be manually placed or downloaded.
+    The FSC dataset requires accepting a license at:
+    https://fluent.ai/fluent-speech-commands-a-dataset-for-spoken-language-understanding/
+
+    Expected structure after extraction:
+        data_dir/fluent_speech_commands_dataset/
+            data/train_data.csv
+            data/valid_data.csv
+            data/test_data.csv
+            wavs/speakers/.../*.wav
+    """
+    fsc_root = os.path.join(data_dir, 'fluent_speech_commands_dataset')
+    train_csv = os.path.join(fsc_root, 'data', 'train_data.csv')
+    if os.path.isfile(train_csv):
+        return fsc_root
+
+    # Try downloading from the public URL
+    import urllib.request
+    import zipfile
+
+    url = 'http://www.fluent.ai/research/fluent-speech-commands/'
+    zip_path = os.path.join(data_dir, 'fluent_speech_commands_dataset.tar.gz')
+
+    # Check if tar.gz already exists
+    if not os.path.isfile(zip_path):
+        print(f"  FSC dataset not found at {fsc_root}")
+        print(f"  Please download the Fluent Speech Commands dataset from:")
+        print(f"    {url}")
+        print(f"  and extract it to: {data_dir}/fluent_speech_commands_dataset/")
+        print(f"  Expected CSV: {train_csv}")
+        sys.exit(1)
+
+    # Extract if tar.gz exists
+    import tarfile
+    print(f"  Extracting {zip_path}...")
+    with tarfile.open(zip_path, 'r:gz') as tar:
+        tar.extractall(data_dir)
+    print("  Extraction complete.")
+
+    if not os.path.isfile(train_csv):
+        print(f"  [ERROR] After extraction, expected CSV not found: {train_csv}")
+        sys.exit(1)
+
+    return fsc_root
+
+
+class FluentSpeechCommandsDataset(Dataset):
+    """Fluent Speech Commands — 31-class intent classification.
+
+    Each utterance is labeled with (action, object, location) → 31 unique intents.
+    Audio is padded/truncated to 1 second (16000 samples) to match GSC pipeline.
+
+    Note: FSC utterances are typically 1-4 seconds. Truncating to 1 second
+    loses some information but keeps compatibility with the existing pipeline.
+    For best FSC results, consider increasing clip_duration_ms.
+    """
+
+    def __init__(self, fsc_root, subset='training', n_mels=40, sr=16000,
+                 clip_duration_ms=1000, augment=False):
+        super().__init__()
+        self.sr = sr
+        self.n_mels = n_mels
+        self.target_length = int(sr * clip_duration_ms / 1000)
+        self.augment = augment
+        self.subset = subset
+        self.fsc_root = fsc_root
+
+        # Map subset names to CSV files
+        csv_map = {
+            'training': 'train_data.csv',
+            'validation': 'valid_data.csv',
+            'testing': 'test_data.csv',
+        }
+        csv_path = os.path.join(fsc_root, 'data', csv_map[subset])
+        if not os.path.isfile(csv_path):
+            print(f"  [ERROR] FSC CSV not found: {csv_path}")
+            sys.exit(1)
+
+        # Build intent label map from training CSV (consistent across splits)
+        train_csv = os.path.join(fsc_root, 'data', 'train_data.csv')
+        self.label_list, self.intent_to_idx, self.sorted_intents = \
+            _build_fsc_intent_map(train_csv)
+        self.labels = self.label_list
+        self.label_to_idx = {l: i for i, l in enumerate(self.labels)}
+
+        global FSC_INTENT_LABELS
+        FSC_INTENT_LABELS = self.label_list
+
+        # Parse CSV to build sample list
+        self.samples = []
+        with open(csv_path, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                # Path in CSV is relative to fsc_root
+                audio_path = os.path.join(fsc_root, row['path'].strip())
+                intent = (row['action'].strip(), row['object'].strip(),
+                          row['location'].strip())
+                if intent in self.intent_to_idx:
+                    label_idx = self.intent_to_idx[intent]
+                    self.samples.append((audio_path, label_idx))
+
+        # Mel spectrogram parameters (same as GSC)
+        self.n_fft = 512
+        self.hop_length = 160
+        self.win_length = 400
+        self.mel_fb = self._create_mel_fb()
+
+        # Count per class
+        class_counts = {}
+        for _, idx in self.samples:
+            lbl = self.labels[idx]
+            class_counts[lbl] = class_counts.get(lbl, 0) + 1
+
+        print(f"  [{subset}] {len(self.samples)} samples, "
+              f"{len(self.labels)} classes ({len(self.intent_to_idx)} intents)")
+
+    def _create_mel_fb(self):
+        n_freq = self.n_fft // 2 + 1
+        mel_low = 0
+        mel_high = 2595 * np.log10(1 + self.sr / 2 / 700)
+        mel_points = np.linspace(mel_low, mel_high, self.n_mels + 2)
+        hz_points = 700 * (10 ** (mel_points / 2595) - 1)
+        bin_points = np.floor((self.n_fft + 1) * hz_points / self.sr).astype(int)
+
+        fb = np.zeros((self.n_mels, n_freq), dtype=np.float32)
+        for i in range(self.n_mels):
+            for j in range(bin_points[i], bin_points[i + 1]):
+                if j < n_freq:
+                    fb[i, j] = ((j - bin_points[i]) /
+                                max(bin_points[i + 1] - bin_points[i], 1))
+            for j in range(bin_points[i + 1], bin_points[i + 2]):
+                if j < n_freq:
+                    fb[i, j] = ((bin_points[i + 2] - j) /
+                                max(bin_points[i + 2] - bin_points[i + 1], 1))
+        return torch.from_numpy(fb)
+
+    def _load_audio(self, path):
+        try:
+            waveform, sr = torchaudio.load(path)
+            if sr != self.sr:
+                waveform = torchaudio.functional.resample(waveform, sr, self.sr)
+            audio = waveform[0]
+        except Exception:
+            audio = torch.zeros(self.target_length)
+
+        # Pad or trim to target length
+        if len(audio) < self.target_length:
+            audio = F.pad(audio, (0, self.target_length - len(audio)))
+        elif len(audio) > self.target_length:
+            audio = audio[:self.target_length]
+
+        return audio
+
+    def _compute_mel(self, audio):
+        window = torch.hann_window(self.win_length)
+        spec = torch.stft(audio, self.n_fft, self.hop_length,
+                          self.win_length, window=window,
+                          return_complex=True)
+        mag = spec.abs()
+        mel = torch.matmul(self.mel_fb, mag)
+        mel = torch.log(mel + 1e-8)
+        return mel
+
+    def _augment(self, audio):
+        shift = np.random.randint(-1600, 1600)
+        if shift > 0:
+            audio = F.pad(audio[shift:], (0, shift))
+        elif shift < 0:
+            audio = F.pad(audio[:shift], (-shift, 0))
+        vol = np.random.uniform(0.8, 1.2)
+        audio = audio * vol
+        if np.random.random() < 0.3:
+            noise = torch.randn_like(audio) * 0.005
+            audio = audio + noise
+        return audio
+
+    def cache_all(self):
+        """Pre-load all audio into RAM for fast training."""
+        print(f"  Caching {len(self.samples)} samples to RAM...", end=" ",
+              flush=True)
+        self._cache_audio = []
+        self._cache_mel = []
+        self._cache_labels = []
+        for i, (path, label) in enumerate(self.samples):
+            audio = self._load_audio(path)
+            mel = self._compute_mel(audio)
+            self._cache_audio.append(audio)
+            self._cache_mel.append(mel)
+            self._cache_labels.append(label)
+            if (i + 1) % 10000 == 0:
+                print(f"{i+1}", end=" ", flush=True)
+        self._cache_audio = torch.stack(self._cache_audio)
+        self._cache_mel = torch.stack(self._cache_mel)
+        self._cache_labels = torch.tensor(self._cache_labels, dtype=torch.long)
+        self._cached = True
+        mem_mb = (self._cache_audio.nelement() * 4 +
+                  self._cache_mel.nelement() * 4) / 1024**2
+        print(f"Done! ({mem_mb:.0f} MB)", flush=True)
+
+    def __len__(self):
+        return len(self.samples)
+
+    def __getitem__(self, idx):
+        if hasattr(self, '_cached') and self._cached:
+            audio = self._cache_audio[idx]
+            mel = self._cache_mel[idx]
+            label = self._cache_labels[idx].item()
+            if self.augment:
+                audio = self._augment(audio.clone())
+                mel = self._compute_mel(audio)
+            return mel, label, audio
+
+        path, label = self.samples[idx]
+        audio = self._load_audio(path)
+        if self.augment:
+            audio = self._augment(audio)
+        mel = self._compute_mel(audio)
+        return mel, label, audio
+
+
+# ============================================================================
 # Model EMA (Exponential Moving Average)
 # ============================================================================
 
@@ -3531,6 +3777,10 @@ def _evaluate_cnn(model, val_loader, device):
 def main():
     parser = argparse.ArgumentParser(
         description="NanoMamba Colab Training — Structural Noise Robustness")
+    parser.add_argument('--dataset', type=str, default='gsc',
+                        choices=['gsc', 'fsc'],
+                        help='Dataset: gsc (Google Speech Commands 12-class) '
+                             'or fsc (Fluent Speech Commands 31-class intent)')
     parser.add_argument('--data_dir', type=str, default='./data',
                         help='Dataset root directory')
     parser.add_argument('--checkpoint_dir', type=str, default='./checkpoints',
@@ -3633,14 +3883,17 @@ def main():
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"\n{'='*80}")
+    dataset_label = 'FSC (31-class intent)' if args.dataset == 'fsc' else 'GSC (12-class KWS)'
     print(f"  NanoMamba Training — Structural Noise Robustness")
     print(f"  Device: {device}")
+    print(f"  Dataset: {dataset_label}")
     print(f"  Models: {args.models}")
     print(f"  Epochs: {args.epochs}, LR: {args.lr}, Batch: {args.batch_size}")
     print(f"  Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"{'='*80}")
 
     # ===== 0. Profile mode (no dataset needed) =====
+    n_classes_profile = 31 if args.dataset == 'fsc' else 12
     if args.profile:
         print("\n  === MODEL PROFILING MODE ===\n")
         model_names = [m.strip() for m in args.models.split(',')]
@@ -3651,7 +3904,7 @@ def main():
         else:
             # Profile specified models
             for name in model_names:
-                model = create_model(name)
+                model = create_model(name, n_classes=n_classes_profile)
                 model.eval()
                 result = profile_model(model, verbose=True)
 
@@ -3664,7 +3917,7 @@ def main():
                       f"{'Lat(ms)':>8} {'RAM(KB)':>9}")
                 print(f"  {'-'*65}")
                 for name in model_names:
-                    model = create_model(name)
+                    model = create_model(name, n_classes=n_classes_profile)
                     model.eval()
                     r = profile_model(model, verbose=False)
                     d = r['deployment']
@@ -3676,17 +3929,30 @@ def main():
         sys.exit(0)
 
     # ===== 1. Load dataset =====
-    print("\n  Loading Google Speech Commands V2...")
     os.makedirs(args.data_dir, exist_ok=True)
 
-    train_dataset = SpeechCommandsDataset(
-        args.data_dir, subset='training', augment=True)
-    val_dataset = SpeechCommandsDataset(
-        args.data_dir, subset='validation', augment=False)
-    test_dataset = SpeechCommandsDataset(
-        args.data_dir, subset='testing', augment=False)
+    if args.dataset == 'fsc':
+        print("\n  Loading Fluent Speech Commands (31-class intent)...")
+        fsc_root = _download_fsc(args.data_dir)
+        n_classes = 31
+        train_dataset = FluentSpeechCommandsDataset(
+            fsc_root, subset='training', augment=True)
+        val_dataset = FluentSpeechCommandsDataset(
+            fsc_root, subset='validation', augment=False)
+        test_dataset = FluentSpeechCommandsDataset(
+            fsc_root, subset='testing', augment=False)
+    else:
+        print("\n  Loading Google Speech Commands V2...")
+        n_classes = 12
+        train_dataset = SpeechCommandsDataset(
+            args.data_dir, subset='training', augment=True)
+        val_dataset = SpeechCommandsDataset(
+            args.data_dir, subset='validation', augment=False)
+        test_dataset = SpeechCommandsDataset(
+            args.data_dir, subset='testing', augment=False)
 
-    print(f"\n  Train: {len(train_dataset)}, Val: {len(val_dataset)}, "
+    print(f"\n  Dataset: {args.dataset.upper()}, Classes: {n_classes}")
+    print(f"  Train: {len(train_dataset)}, Val: {len(val_dataset)}, "
           f"Test: {len(test_dataset)}")
 
     # Optional RAM caching for val set
@@ -3700,7 +3966,7 @@ def main():
     model_names = [m.strip() for m in args.models.split(',')]
     models = {}
     for name in model_names:
-        model = create_model(name)
+        model = create_model(name, n_classes=n_classes)
         # Enable SpecAugment if requested (works with any NanoMamba model)
         if args.spec_augment and hasattr(model, 'use_spec_augment'):
             model.use_spec_augment = True
