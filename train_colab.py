@@ -3442,6 +3442,33 @@ def train_model(model, model_name, train_dataset, val_dataset,
             except Exception:
                 pass  # Not on Colab or Drive not mounted
 
+        # Also track best during HARD phase (epoch 20+) separately
+        # HARD phase models have seen extreme noise → better noise robustness
+        if noise_curriculum_v2 and epoch >= 20:
+            if not hasattr(main, '_hard_best'):
+                main._hard_best = {}
+            hard_key = model_name
+            hard_prev = main._hard_best.get(hard_key, 0)
+            if val_acc > hard_prev:
+                main._hard_best[hard_key] = val_acc
+                torch.save({
+                    'model_state_dict': model.state_dict(),
+                    'epoch': epoch,
+                    'val_acc': val_acc,
+                    'model_name': model_name,
+                    'noise_aug': noise_aug,
+                    'use_ema': use_ema,
+                    'phase': 'hard',
+                }, model_dir / 'best_hard.pt')
+                print(f"    🔥 HARD-phase best: {val_acc:.2f}% @ epoch {epoch+1}", flush=True)
+                try:
+                    drive_backup = Path('/content/drive/MyDrive/NC-SSM-checkpoints') / model_name.replace(' ', '_')
+                    drive_backup.mkdir(parents=True, exist_ok=True)
+                    import shutil
+                    shutil.copy2(model_dir / 'best_hard.pt', drive_backup / 'best_hard.pt')
+                except Exception:
+                    pass
+
         # Restore original weights for continued training
         if ema is not None:
             ema.restore(model)
@@ -3464,10 +3491,18 @@ def train_model(model, model_name, train_dataset, val_dataset,
         json.dump(history, f, indent=2)
 
     print(f"\n  Best: {best_acc:.2f}% @ epoch {best_epoch}")
+    hard_pt = model_dir / 'best_hard.pt'
+    if hard_pt.exists():
+        hard_ckpt = torch.load(hard_pt, map_location=device)
+        print(f"  Best (HARD phase): {hard_ckpt['val_acc']:.2f}% @ epoch {hard_ckpt['epoch']+1}")
     print(f"  Saved to {model_dir}")
 
-    # Load best checkpoint
-    ckpt = torch.load(model_dir / 'best.pt', map_location=device)
+    # Load best_hard if available (better noise robustness), else best
+    if hard_pt.exists():
+        ckpt = torch.load(hard_pt, map_location=device)
+        print(f"  → Using HARD-phase checkpoint for evaluation (better noise robustness)")
+    else:
+        ckpt = torch.load(model_dir / 'best.pt', map_location=device)
     model.load_state_dict(ckpt['model_state_dict'], strict=False)
 
     return best_acc, model
